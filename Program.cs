@@ -182,7 +182,11 @@ public class Main
 
     public async Task Procesamiento(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser)
     {
-        rutaDelDirectorio += nombreReporte + ".xlsx";
+        DateTime currentDateTime = DateTime.Now;
+        DateTime currentDate = currentDateTime.Date;
+        string fechaActual = currentDate.ToString("dd-MM-yyyy");
+        rutaDelDirectorio += "Reportes\\" + nombreReporte + " " + fechaActual + ".xlsx";
+
         for (; anioInicio <= anioFin; anioInicio++)
         {
             Console.WriteLine("Realizando consulta...");
@@ -191,13 +195,10 @@ public class Main
             List<Result> results = await Query(busqueda);
 
 
-            DateTime currentDateTime = DateTime.Now;
-            DateTime currentDate = currentDateTime.Date;
-            string fechaActual = currentDate.ToString("dd/MM/yyyy");
             imprimirResultados(results);
 
 
-            bool creado = CrearAbrirExcelReportes(rutaDelDirectorio, fechaActual + " " + anioInicio.ToString(), busquedaUser.Replace("%20", " "));
+            bool creado = CrearAbrirExcelReportes(rutaDelDirectorio, anioInicio.ToString(), busquedaUser.Replace("%20", " "));
             if (!creado)
             {
                 Console.WriteLine("Error al crear reporte");
@@ -206,7 +207,7 @@ public class Main
             {
                 decimal oficialUSD = await ObtenerPrecioVentaDolarOficial();
                 decimal blueUSD = await ObtenerPrecioVentaDolarBlue();
-                CompletarReporte(rutaDelDirectorio, results, fechaActual + " " + anioInicio.ToString(), oficialUSD, blueUSD, anioInicio);
+                CompletarReporte(rutaDelDirectorio, results, anioInicio.ToString(), oficialUSD, blueUSD, anioInicio);
                 Console.WriteLine($"Terminados los resultados del {anioInicio}");
             }
         }
