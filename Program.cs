@@ -185,7 +185,7 @@ public class Main
         DateTime currentDateTime = DateTime.Now;
         DateTime currentDate = currentDateTime.Date;
         string fechaActual = currentDate.ToString("dd-MM-yyyy");
-        rutaDelDirectorio += "Reportes\\" + nombreReporte + " " + fechaActual + ".xlsx";
+        rutaDelDirectorio += "Reportes\\" + fechaActual + " " + nombreReporte + ".xlsx";
 
         for (; anioInicio <= anioFin; anioInicio++)
         {
