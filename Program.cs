@@ -58,6 +58,7 @@ using System.Reflection.PortableExecutable;
 using System.Text.Json.Serialization;
 using OfficeOpenXml.Drawing.Style.Fill;
 using System.Net.Http.Json;
+using System.Text.RegularExpressions;
 
 
 public class Globals
@@ -90,9 +91,10 @@ public class Program
             int anioInicio = 0;
             int anioFin = 0;
             rutaDelDirectorio = rutaDelDirectorio.Replace("token.txt", "");
-            rutaDelDirectorio += "busqueda.txt";
-            Busqueda busquedaPorTxt = mainInstance.obtenerBusqueda(rutaDelDirectorio);
-            if (busquedaPorTxt == null)
+            //rutaDelDirectorio += "busqueda.txt";
+            List <string> rutas = mainInstance.GetFilesByPattern(rutaDelDirectorio);
+            //Busqueda busquedaPorTxt = mainInstance.obtenerBusqueda(rutaDelDirectorio);
+            if (!(rutas.Count>0))
             {
                 while (!ingresoCorrecto)
                 {
@@ -147,47 +149,26 @@ public class Program
                         }
                     }
                 }
+                await mainInstance.Procesamiento(rutaDelDirectorio, nombreReporte, anioInicio, anioFin, busquedaUser);
             }
             else
             {
-                nombreReporte = busquedaPorTxt.NombreReporte;
-                busquedaUser = busquedaPorTxt.query;
-                anioInicio = busquedaPorTxt.AnioInicio;
-                anioFin = busquedaPorTxt.AnioFin;
-            }
-            rutaDelDirectorio = rutaDelDirectorio.Replace("busqueda.txt", "");
-            rutaDelDirectorio += nombreReporte + ".xlsx";
-            for (; anioInicio <= anioFin; anioInicio++)
-            {
-                Console.WriteLine("Realizando consulta...");
-                string busqueda = busquedaUser + " " + anioInicio.ToString();
-                busqueda = busqueda.Replace(" ", "%20");
-                List<Result> results = await mainInstance.Query(busqueda);
-
-
-                DateTime currentDateTime = DateTime.Now;
-                DateTime currentDate = currentDateTime.Date;
-                string fechaActual = currentDate.ToString("dd/MM/yyyy");
-                mainInstance.imprimirResultados(results);
-
-
-                bool creado = mainInstance.CrearAbrirExcelReportes(rutaDelDirectorio, fechaActual + " " + anioInicio.ToString(), busquedaUser.Replace("%20", " "));
-                if (!creado)
-                    Console.WriteLine("Error al crear reporte");
-                else
+                foreach (var archivo in rutas)
                 {
-                    decimal oficialUSD = await mainInstance.ObtenerPrecioVentaDolarOficial();
-                    decimal blueUSD = await mainInstance.ObtenerPrecioVentaDolarBlue();
-                    mainInstance.CompletarReporte(rutaDelDirectorio, results, fechaActual + " " + anioInicio.ToString(), oficialUSD, blueUSD, anioInicio);
-                    Console.WriteLine($"Terminados los resultados del {anioInicio}");
+                    Busqueda busquedaPorTxt = mainInstance.obtenerBusqueda(archivo);
+                    await mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query);
                 }
             }
+            
+           
         }
         catch (Exception ex)
         {
             Console.WriteLine(ex.ToString());
         }
     }
+
+    
 }
 
 public class Main
@@ -198,6 +179,39 @@ public class Main
     {
         _globals = globals;
     }
+
+    public async Task Procesamiento(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser)
+    {
+        rutaDelDirectorio += nombreReporte + ".xlsx";
+        for (; anioInicio <= anioFin; anioInicio++)
+        {
+            Console.WriteLine("Realizando consulta...");
+            string busqueda = busquedaUser + " " + anioInicio.ToString();
+            busqueda = busqueda.Replace(" ", "%20");
+            List<Result> results = await Query(busqueda);
+
+
+            DateTime currentDateTime = DateTime.Now;
+            DateTime currentDate = currentDateTime.Date;
+            string fechaActual = currentDate.ToString("dd/MM/yyyy");
+            imprimirResultados(results);
+
+
+            bool creado = CrearAbrirExcelReportes(rutaDelDirectorio, fechaActual + " " + anioInicio.ToString(), busquedaUser.Replace("%20", " "));
+            if (!creado)
+            {
+                Console.WriteLine("Error al crear reporte");
+            }
+            else
+            {
+                decimal oficialUSD = await ObtenerPrecioVentaDolarOficial();
+                decimal blueUSD = await ObtenerPrecioVentaDolarBlue();
+                CompletarReporte(rutaDelDirectorio, results, fechaActual + " " + anioInicio.ToString(), oficialUSD, blueUSD, anioInicio);
+                Console.WriteLine($"Terminados los resultados del {anioInicio}");
+            }
+        }
+    }
+
     public async Task<List<Result>> Query(string busquedaUser)
     {
         string query = "search?q=<BUSQUEDA>&status=active&limit=50";
@@ -273,8 +287,7 @@ public class Main
                 queryFinal = query + offsetQuery;
                 url = "https://api.mercadolibre.com/sites/MLA/" + queryFinal;
             }
-            return results;
-           
+            return results;  
         }
     }
 
@@ -612,6 +625,35 @@ public class Main
             Console.WriteLine($"Error al procesar el archivo de busqueda: {ex.Message}");
             return null;
         }
+    }
+
+    public List<string> GetFilesByPattern(string folderPath)
+    {
+        List<string> matchingFiles = new List<string>();
+
+        try
+        {
+            // Obtener todos los archivos de la carpeta
+            string[] allFiles = Directory.GetFiles(folderPath);
+
+            // Expresión regular para buscar nombres como busqueda1.txt, busqueda2.txt, etc.
+            Regex regex = new Regex(@"busqueda\d+\.txt$", RegexOptions.IgnoreCase);
+
+            // Filtrar los archivos que coincidan con el patrón
+            foreach (string file in allFiles)
+            {
+                if (regex.IsMatch(Path.GetFileName(file)))
+                {
+                    matchingFiles.Add(file);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al buscar archivos de busqueda: {ex.Message}");
+        }
+
+        return matchingFiles;
     }
 
     public class DolarApiResponse
