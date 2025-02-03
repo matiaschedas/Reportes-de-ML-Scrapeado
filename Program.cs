@@ -59,6 +59,7 @@ using System.Text.Json.Serialization;
 using OfficeOpenXml.Drawing.Style.Fill;
 using System.Net.Http.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 
 public class Globals
@@ -153,11 +154,14 @@ public class Program
             }
             else
             {
+                var tareas = new List<Task>();
                 foreach (var archivo in rutas)
                 {
                     Busqueda busquedaPorTxt = mainInstance.obtenerBusqueda(archivo);
-                    await mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query);
+                    Task tarea = mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query);
+                    tareas.Add(tarea);
                 }
+                await Task.WhenAll(tareas);
             }
             
            
@@ -179,6 +183,9 @@ public class Main
     {
         _globals = globals;
     }
+    SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
+    bool ReemplazoTokenTerminado = false;
+    bool esPrimerIteracion = true;
 
     public async Task Procesamiento(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser)
     {
@@ -195,8 +202,8 @@ public class Main
             List<Result> results = await Query(busqueda);
 
 
-            imprimirResultados(results);
-
+            //imprimirResultados(results);
+            Console.WriteLine("Volcando resultados de " + busquedaUser + " " + anioInicio);
 
             bool creado = CrearAbrirExcelReportes(rutaDelDirectorio, anioInicio.ToString(), busquedaUser.Replace("%20", " "));
             if (!creado)
@@ -208,7 +215,7 @@ public class Main
                 decimal oficialUSD = await ObtenerPrecioVentaDolarOficial();
                 decimal blueUSD = await ObtenerPrecioVentaDolarBlue();
                 CompletarReporte(rutaDelDirectorio, results, anioInicio.ToString(), oficialUSD, blueUSD, anioInicio);
-                Console.WriteLine($"Terminados los resultados del {anioInicio}");
+                //Console.WriteLine($"Terminados los resultados del {anioInicio}");
             }
         }
     }
@@ -221,7 +228,7 @@ public class Main
         query = query.Replace("<BUSQUEDA>", busquedaUser);
         string queryFinal = query + offsetQuery;
         string url = "https://api.mercadolibre.com/sites/MLA/" + queryFinal;
-        string token = _globals.Token; 
+        string token = _globals.Token;
 
         using (HttpClient client = new HttpClient())
         {
@@ -233,29 +240,57 @@ public class Main
                 finBucle = esFinBucle(offset);
                 try
                 {
-                    HttpResponseMessage response = await client.GetAsync(url);
-                    string errorDetails = await response.Content.ReadAsStringAsync();
-                    if (!response.IsSuccessStatusCode)
+                    HttpResponseMessage response = new HttpResponseMessage();
+                    string errorDetails = "";
+                    if (esPrimerIteracion)
                     {
-                        var jsonObject = JsonSerializer.Deserialize<JsonElement>(errorDetails);
-                        string message = jsonObject.GetProperty("message").GetString() ?? new String("");
+                        await semaphore.WaitAsync();
+                        if (!ReemplazoTokenTerminado)
+                        {
+                            response = await client.GetAsync(url);
+                            errorDetails = await response.Content.ReadAsStringAsync();
+                            if (!response.IsSuccessStatusCode)
+                            {
+                                var jsonObject = JsonSerializer.Deserialize<JsonElement>(errorDetails);
+                                string message = jsonObject.GetProperty("message").GetString() ?? new String("");
 
-                        if (message == "invalid access token")
-                        {
-                            string newAccessToken = await Refresh();
-                            token = newAccessToken;
-                            _globals.Token = newAccessToken;
-                            string rutaDelDirectorio = AppContext.BaseDirectory;
-                            rutaDelDirectorio += "token.txt";
-                            ReemplazarContenidoArchivo(rutaDelDirectorio, newAccessToken);
+                                if (message == "invalid access token")
+                                {
+                                    string newAccessToken = await Refresh();
+                                    token = newAccessToken;
+                                    _globals.Token = newAccessToken;
+                                    string rutaDelDirectorio = AppContext.BaseDirectory;
+                                    rutaDelDirectorio += "token.txt";
+                                    ReemplazarContenidoArchivo(rutaDelDirectorio, newAccessToken);
+                                }
+                                if (client.DefaultRequestHeaders.Contains("Authorization"))
+                                {
+                                    client.DefaultRequestHeaders.Remove("Authorization");
+                                }
+                                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {_globals.Token}");
+                                response = await client.GetAsync(url);
+                            }
+                            await Task.Delay(3000);
+                            ReemplazoTokenTerminado = true;
+                            semaphore.Release();
                         }
-                        if (client.DefaultRequestHeaders.Contains("Authorization"))
+                        else
                         {
-                            client.DefaultRequestHeaders.Remove("Authorization");
+                            if (client.DefaultRequestHeaders.Contains("Authorization"))
+                            {
+                                client.DefaultRequestHeaders.Remove("Authorization");
+                            }
+                            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {_globals.Token}");
+                            response = await client.GetAsync(url);
                         }
-                        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
-                        response = await client.GetAsync(url);
+                        esPrimerIteracion = false;
                     }
+                    else
+                    {
+                        response = await client.GetAsync(url);
+                        errorDetails = await response.Content.ReadAsStringAsync();
+                    }
+                    
 
                     if (response.IsSuccessStatusCode)
                     {
