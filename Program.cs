@@ -61,6 +61,7 @@ using System.Net.Http.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Globalization;
 
 
 public class Globals
@@ -107,13 +108,31 @@ public class Program
             {
                 EsReporteComparador = true;
                 fechaAComparar = comparador.FechaAComparar;
-                if(fechaAComparar == "ayer")
+                if(fechaAComparar.ToLower() == "ayer")
                 {
                     DateTime currentDateTime = DateTime.Now;
                     DateTime currentDate = currentDateTime.Date;
                     string fechaActual = currentDate.ToString("dd-MM-yyyy");
                     string fechaAyer = currentDate.AddDays(-1).ToString("dd-MM-yyyy");
                     fechaAComparar = fechaAyer;
+                }
+                if(fechaAComparar.ToLower() == "anterior")
+                {
+                    string rutaReportes = AppContext.BaseDirectory;
+                    rutaReportes += "Reportes";
+                    DateTime fechaMasReciente = mainInstance.FechaMasReciente(rutaReportes);
+                    if (fechaMasReciente == new DateTime(2000,1,1))
+                    {
+                        Console.WriteLine("Error, no se pudo obtener la fecha mas reciente de los reportes anteriores");
+                        return;
+                    }
+                    if(fechaMasReciente == DateTime.Today)
+                    {
+                        Console.WriteLine("Error, no se puede generar el reporte porque ya fue generado para el dia de hoy");
+                        return;
+                    }
+                    fechaAComparar = fechaMasReciente.ToString("dd-MM-yyyy");
+                    
                 }
             }
             if (!EsReporteComparador)
@@ -251,6 +270,25 @@ public class Main
             return fechaConvertida.Date < DateTime.Now.Date;
         }
         return false;
+    }
+
+    public DateTime FechaMasReciente(string ruta)
+    {
+        var archivos = Directory.GetFiles(ruta).Where(a => !Path.GetFileNameWithoutExtension(a).ToUpper().Contains("COMPARADOR")).ToList();
+        DateTime fechaMasReciente = new DateTime(2000,1,1);
+        foreach(var archivo in archivos)
+        {
+            string nombreArchivo = Path.GetFileNameWithoutExtension(archivo);
+            Match match = Regex.Match(nombreArchivo, @"\b(\d{2}-\d{2}-\d{4})\b");
+            if(match.Success && DateTime.TryParseExact(match.Value, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime fecha))
+            {
+                if (fecha > fechaMasReciente)
+                {
+                    fechaMasReciente = fecha;
+                }
+            }
+        }
+        return fechaMasReciente;
     }
 
     public async Task ProcesamientoComparador(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser, string fechaAComparar)
