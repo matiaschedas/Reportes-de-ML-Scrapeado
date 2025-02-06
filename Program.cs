@@ -312,9 +312,16 @@ public class Main
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
         using (var paquete = new ExcelPackage(new FileInfo(ruta)))
         {
+
             var workbook = paquete.Workbook;
             var ws = workbook.Worksheets[hoja];
             int rowCount = ws.Dimension?.Rows ?? 0;
+            // Recorremos todas las filas y limpiamos el color de fondo
+            for (int row = 1; row <= rowCount; row++)
+            {
+                var cell = ws.Cells[row, 1];
+                cell.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.None; // Sin relleno
+            }
 
             foreach(var fila in cambiaronPrecio)
             {
