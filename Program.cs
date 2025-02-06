@@ -282,6 +282,7 @@ public class Main
             string busqueda = busquedaUser + " " + hoja.ToString();
             busqueda = busqueda.Replace(" ", "%20");
             List<Result> results = await Query(busqueda);
+            results = BorrarCajaAutomatica(results);
             Console.WriteLine("Volcando resultados de " + busquedaUser + " " + hoja);
 
             List<List<string>> tablaHoja = LeerHojaReporteAnterior(rutaDelDirectorioAnterior, i);
@@ -294,8 +295,41 @@ public class Main
             decimal oficialUSD = await ObtenerPrecioVentaDolarOficial();
             decimal blueUSD = await ObtenerPrecioVentaDolarBlue();
             results = FiltrarResultadosRepetidos(results, tablaHoja);
+            List<Result> cambiaronPrecio = ObtenerCambiaronPrecio(results, tablaHoja);
             CompletarReporte(rutaDelDirectorio, results, hoja.ToString(), oficialUSD, blueUSD, hoja);
+            ModificarReporte(rutaDelDirectorioAnterior,cambiaronPrecio, hoja.ToString());
+            ModificarReporte(rutaDelDirectorio, cambiaronPrecio, hoja.ToString());
             hoja++;
+        }
+    }
+
+    public void ModificarReporte(string ruta, List<Result> cambiaronPrecio, string hoja)
+    {
+        if (cambiaronPrecio.Count == 0)
+        {
+            return;
+        }
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+        using (var paquete = new ExcelPackage(new FileInfo(ruta)))
+        {
+            var workbook = paquete.Workbook;
+            var ws = workbook.Worksheets[hoja];
+            int rowCount = ws.Dimension?.Rows ?? 0;
+
+            foreach(var fila in cambiaronPrecio)
+            {
+                for (int row = 1; row <= rowCount; row++)
+                {
+                    var cell = ws.Cells[row, 1];
+                    if (cell.Text.Replace("-", "") == fila.Id.Replace("-", ""))
+                    {
+                        cell.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                        cell.Style.Fill.BackgroundColor.SetColor(System.Drawing.ColorTranslator.FromHtml("#FFFF00"));
+                        break;
+                    }
+                }
+            }
+            paquete.Save();
         }
     }
 
@@ -309,6 +343,18 @@ public class Main
         }
         results.RemoveAll(r => idsYPrecios.Contains((r.Id, r.Price)));
         return results;
+    }
+    public List<Result> ObtenerCambiaronPrecio(List<Result> results, List<List<string>> tabla)
+    {
+        var idsYPrecios = new HashSet<(string, decimal)>();
+        var ids = new HashSet<string>();
+        foreach(var fila in tabla)
+        {
+            decimal precio = decimal.Parse(fila[3].ToString());
+            idsYPrecios.Add((fila[0].Replace("-", ""), precio));
+            ids.Add(fila[0].Replace("-", ""));
+        }
+        return results.Where(r => ids.Contains(r.Id) && !idsYPrecios.Contains((r.Id, r.Price))).ToList();
     }
 
     public string ObtenerNombrePrimerHoja(string ruta)
@@ -605,12 +651,18 @@ public class Main
         }
         return null; 
     }
+    public List<Result> BorrarCajaAutomatica(List<Result> results)
+    {
+        List<Result> resultsFiltrado = results.ToList();
+        resultsFiltrado.RemoveAll(item => GetAttributeValue(item, "Transmisión") != "Manual");
+        //resultsFiltrado.RemoveAll(item => GetAttributeValue(item, "Año") != anioInicio.ToString());
+        return resultsFiltrado;
+    }
     public bool CompletarReporte(string ruta, List<Result> results, string hoja, decimal dolarOficial, decimal dolarBlue, int anioInicio)
     {
         try
         {
-            results.RemoveAll(item => GetAttributeValue(item, "Transmisión") != "Manual");
-            results.RemoveAll(item => GetAttributeValue(item, "Año") != anioInicio.ToString());
+            
             var itemsOrdenados = results.OrderBy(item => item.Price).ToList();
 
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
@@ -655,16 +707,18 @@ public class Main
                     worksheet.Cells[fila, 6].Value = anio;
                     fila += 1;
                 }
-            
-                decimal promUSD = totalUSD / cantUSD;
-                decimal promARS = totalARS / cantARS;
-                decimal promUSDBlueARS = totalUSDBlue / cantARS;
-                decimal promUSDOficialARS = totalUSDOficial / cantARS;
+
+
+                decimal promUSD, promARS, promUSDBlueARS, promUSDOficialARS;
+                promUSD = cantUSD > 0 ? (totalUSD / cantUSD) : 0;
+                promARS = cantARS > 0 ? (totalARS / cantARS) : 0;
+                promUSDBlueARS = cantARS > 0 ? (totalUSDBlue / cantARS) : 0;
+                promUSDOficialARS = cantARS > 0 ? (totalUSDOficial / cantARS) : 0;
+ 
                 promUSDBlueARS += promUSD;
                 promUSDBlueARS /= 2;
                 promUSDOficialARS += promUSD;
                 promUSDOficialARS /= 2;
-
 
 
                 worksheet.Cells[3, 8].Value = promUSD;
@@ -673,8 +727,6 @@ public class Main
                 worksheet.Cells[3, 11].Value = promUSDOficialARS;
                 worksheet.Cells[3, 12].Value = dolarOficial;
                 worksheet.Cells[3, 13].Value = dolarBlue;
-
-
 
                 package.Save();
                 return true;
