@@ -60,6 +60,7 @@ using OfficeOpenXml.Drawing.Style.Fill;
 using System.Net.Http.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.ComponentModel.DataAnnotations.Schema;
 
 
 public class Globals
@@ -95,66 +96,122 @@ public class Program
             //rutaDelDirectorio += "busqueda.txt";
             List <string> rutas = mainInstance.GetFilesByPattern(rutaDelDirectorio);
             //Busqueda busquedaPorTxt = mainInstance.obtenerBusqueda(rutaDelDirectorio);
-            if (!(rutas.Count>0))
+            string reporteComparador = "";
+            bool EsReporteComparador = false;
+            string fechaAComparar = "";
+       
+            string rutaComparador = AppContext.BaseDirectory;
+            rutaComparador += "Comparador.txt";
+            CMP comparador = mainInstance.obtenerCMP(rutaComparador);
+            if (comparador.Comparador == true)
             {
-                while (!ingresoCorrecto)
+                EsReporteComparador = true;
+                fechaAComparar = comparador.FechaAComparar;
+                if(fechaAComparar == "ayer")
                 {
-                    Console.WriteLine("Por favor, ingresa el nombre del reporte a guardar:");
-                    nombreReporte = Console.ReadLine() ?? String.Empty;
-                    if (nombreReporte.Replace(" ", "") != "")
-                    {
-                        ingresoCorrecto = true;
-                    }
+                    DateTime currentDateTime = DateTime.Now;
+                    DateTime currentDate = currentDateTime.Date;
+                    string fechaActual = currentDate.ToString("dd-MM-yyyy");
+                    string fechaAyer = currentDate.AddDays(-1).ToString("dd-MM-yyyy");
+                    fechaAComparar = fechaAyer;
                 }
-                ingresoCorrecto = false;
-                while (!ingresoCorrecto)
+            }
+            if (!EsReporteComparador)
+            {
+                if (!(rutas.Count > 0))
                 {
-                    Console.WriteLine("Por favor, ingresa tu busqueda de ML:");
-                    busquedaUser = Console.ReadLine() ?? String.Empty;
-                    if (busquedaUser.Replace(" ", "") != "")
+                    while (!ingresoCorrecto)
                     {
-                        ingresoCorrecto = true;
-                        busquedaUser = busquedaUser.Replace(" ", "%20");
-                    }
-                }
-                ingresoCorrecto = false;
-                while (!ingresoCorrecto)
-                {
-                    Console.WriteLine("Ingrese año de inicio");
-                    anioInicioStr = Console.ReadLine() ?? String.Empty;
-                    if (!int.TryParse(anioInicioStr, out int result))
-                    {
-                        ingresoCorrecto = false;
-                    }
-                    else
-                    {
-                        int.TryParse(anioInicioStr, out anioInicio);
-                        ingresoCorrecto = true;
-                    }
-                }
-                ingresoCorrecto = false;
-                while (!ingresoCorrecto)
-                {
-                    Console.WriteLine("Ingrese año de fin");
-                    anioFinStr = Console.ReadLine() ?? String.Empty;
-                    if (!int.TryParse(anioFinStr, out int result))
-                    {
-                        ingresoCorrecto = false;
-                    }
-                    else
-                    {
-                        int.TryParse(anioFinStr, out anioFin);
-                        if (anioFin >= anioInicio)
+                        Console.WriteLine("Por favor, ingresa el nombre del reporte a guardar:");
+                        nombreReporte = Console.ReadLine() ?? String.Empty;
+                        if (nombreReporte.Replace(" ", "") != "")
                         {
                             ingresoCorrecto = true;
                         }
                     }
+                    ingresoCorrecto = false;
+                    while (!ingresoCorrecto)
+                    {
+                        Console.WriteLine("Por favor, ingresa tu busqueda de ML:");
+                        busquedaUser = Console.ReadLine() ?? String.Empty;
+                        if (busquedaUser.Replace(" ", "") != "")
+                        {
+                            ingresoCorrecto = true;
+                            busquedaUser = busquedaUser.Replace(" ", "%20");
+                        }
+                    }
+                    ingresoCorrecto = false;
+                    while (!ingresoCorrecto)
+                    {
+                        Console.WriteLine("Ingrese año de inicio");
+                        anioInicioStr = Console.ReadLine() ?? String.Empty;
+                        if (!int.TryParse(anioInicioStr, out int result))
+                        {
+                            ingresoCorrecto = false;
+                        }
+                        else
+                        {
+                            int.TryParse(anioInicioStr, out anioInicio);
+                            ingresoCorrecto = true;
+                        }
+                    }
+                    ingresoCorrecto = false;
+                    while (!ingresoCorrecto)
+                    {
+                        Console.WriteLine("Ingrese año de fin");
+                        anioFinStr = Console.ReadLine() ?? String.Empty;
+                        if (!int.TryParse(anioFinStr, out int result))
+                        {
+                            ingresoCorrecto = false;
+                        }
+                        else
+                        {
+                            int.TryParse(anioFinStr, out anioFin);
+                            if (anioFin >= anioInicio)
+                            {
+                                ingresoCorrecto = true;
+                            }
+                        }
+                    }
+                    await mainInstance.Procesamiento(rutaDelDirectorio, nombreReporte, anioInicio, anioFin, busquedaUser);
                 }
-                await mainInstance.Procesamiento(rutaDelDirectorio, nombreReporte, anioInicio, anioFin, busquedaUser);
+                else
+                {
+                    var tareas = new List<Task>();
+                    Console.WriteLine("Ejecutando Reporte del dia--------------------------------------------");
+                    foreach (var archivo in rutas)
+                    {
+                        Busqueda busquedaPorTxt = mainInstance.obtenerBusqueda(archivo);
+                        Task tarea = mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query);
+                        tareas.Add(tarea);
+                    }
+                    await Task.WhenAll(tareas);
+                }
             }
             else
             {
+                if (!(rutas.Count > 0))
+                {
+                    Console.WriteLine("No se puede realizar el reporte porque no hay ningun archivo de busqueda");
+                    return;
+                }
+                if (mainInstance.EsFechaValida(fechaAComparar)==false){
+                    Console.WriteLine("No se puede realizar el reporte porque la fecha a comparar no es valida");
+                    return;
+                }
                 var tareas = new List<Task>();
+                Console.WriteLine("Ejecutando Reporte Comparador-----------------------------------------");
+                foreach (var archivo in rutas)
+                {
+                    Busqueda busquedaPorTxt = mainInstance.obtenerBusqueda(archivo);
+                    Task tarea =  mainInstance.ProcesamientoComparador(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query, fechaAComparar);
+                    //Task tarea2 = mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query);
+                    tareas.Add(tarea);
+                    //tareas.Add(tarea2);
+                }
+                await Task.WhenAll(tareas);
+                Console.WriteLine("Ejecutando Reporte del dia--------------------------------------------");
+                tareas = new List<Task>();
                 foreach (var archivo in rutas)
                 {
                     Busqueda busquedaPorTxt = mainInstance.obtenerBusqueda(archivo);
@@ -186,6 +243,119 @@ public class Main
     SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
     bool ReemplazoTokenTerminado = false;
     bool esPrimerIteracion = true;
+
+    public bool EsFechaValida(string fecha)
+    {
+        if (DateTime.TryParse(fecha, out DateTime fechaConvertida))
+        {
+            return fechaConvertida.Date < DateTime.Now.Date;
+        }
+        return false;
+    }
+
+    public async Task ProcesamientoComparador(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser, string fechaAComparar)
+    {
+        DateTime currentDateTime = DateTime.Now;
+        DateTime currentDate = currentDateTime.Date;
+        string fechaActual = currentDate.ToString("dd-MM-yyyy");
+        DateTime fechaAnterior = DateTime.Parse(fechaAComparar);
+        string fechaAnteriorText = fechaAnterior.ToString("dd-MM-yyyy");
+        string rutaDelDirectorioAnterior = rutaDelDirectorio +  "Reportes\\" + fechaAnteriorText + " " + nombreReporte + ".xlsx";
+        rutaDelDirectorio += "Reportes\\" + fechaActual + " " + nombreReporte + " COMPARADOR vs " + fechaAnteriorText + ".xlsx";
+
+        if (!(File.Exists(rutaDelDirectorioAnterior)))
+        {
+            Console.WriteLine("No es posible hacer un reporte comparador porque no existe el reporte de la fecha: "+ fechaAnteriorText);
+            return;
+        }
+        int cantidadHojas = ObtenerCantidadHojas(rutaDelDirectorioAnterior);
+        if (cantidadHojas == 0)
+        {
+            Console.WriteLine("No hay hojas en el reporte de ayer");
+            return;
+        }
+        string primerHoja = ObtenerNombrePrimerHoja(rutaDelDirectorioAnterior);
+        int hoja = int.Parse(primerHoja);
+        for(int i = 0; i<cantidadHojas; i++)
+        {
+            Console.WriteLine("Realizando consulta...");
+            string busqueda = busquedaUser + " " + hoja.ToString();
+            busqueda = busqueda.Replace(" ", "%20");
+            List<Result> results = await Query(busqueda);
+            Console.WriteLine("Volcando resultados de " + busquedaUser + " " + hoja);
+
+            List<List<string>> tablaHoja = LeerHojaReporteAnterior(rutaDelDirectorioAnterior, i);
+            bool creado = CrearAbrirExcelReportes(rutaDelDirectorio, hoja.ToString(), busquedaUser.Replace("%20", " "));
+            if (!creado)
+            {
+                Console.WriteLine("Error al crear reporte");
+                return;
+            }
+            decimal oficialUSD = await ObtenerPrecioVentaDolarOficial();
+            decimal blueUSD = await ObtenerPrecioVentaDolarBlue();
+            results = FiltrarResultadosRepetidos(results, tablaHoja);
+            CompletarReporte(rutaDelDirectorio, results, hoja.ToString(), oficialUSD, blueUSD, hoja);
+            hoja++;
+        }
+    }
+
+    public List<Result> FiltrarResultadosRepetidos(List<Result> results, List<List<string>> tabla)
+    {
+        var idsYPrecios = new HashSet<(string, decimal)>();
+        foreach(var fila in tabla)
+        {
+            decimal precio = decimal.Parse(fila[3].ToString());
+            idsYPrecios.Add((fila[0].Replace("-",""), precio));
+        }
+        results.RemoveAll(r => idsYPrecios.Contains((r.Id, r.Price)));
+        return results;
+    }
+
+    public string ObtenerNombrePrimerHoja(string ruta)
+    {
+        string primerHoja = "";
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+        using (var paquete = new ExcelPackage(new FileInfo(ruta)))
+        {
+            var workbook = paquete.Workbook;
+            primerHoja = workbook.Worksheets[0].Name;
+        }
+        return primerHoja;
+    }
+
+    public int ObtenerCantidadHojas(string ruta)
+    {
+        var cantidad = 0;
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+        using (var paquete = new ExcelPackage(new FileInfo(ruta)))
+        {
+            var workbook = paquete.Workbook;
+            cantidad = workbook.Worksheets.Count;
+        }
+        return cantidad;
+    }
+
+    public List<List<string>> LeerHojaReporteAnterior(string ruta, int hoja)
+    {
+        var tabla = new List<List<string>>();
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+        using (var paquete = new ExcelPackage(new FileInfo(ruta)))
+        {
+            var ws = paquete.Workbook.Worksheets[hoja];
+            int filasTotales = ws.Dimension.End.Row;
+            for(int fila = 3; fila<=filasTotales; fila++)
+            {
+                var datosFila = new List<string>();
+                for(int columna = 1; columna <= 4; columna++)
+                {
+                    var celda = ws.Cells[fila, columna].Text;
+                    datosFila.Add(celda);
+                }
+                tabla.Add(datosFila);
+            }
+        }
+        return tabla;
+    }
 
     public async Task Procesamiento(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser)
     {
@@ -663,6 +833,29 @@ public class Main
         }
     }
 
+    public CMP obtenerCMP(string filePath)
+    {
+        try
+        {
+            if (!File.Exists(filePath))
+            {
+                return null;
+            }
+            string jsonContent = File.ReadAllText(filePath);
+            if (string.IsNullOrWhiteSpace(jsonContent))
+            {
+                return null;
+            }
+            CMP reporte = JsonSerializer.Deserialize<CMP>(jsonContent);
+            return reporte;
+        }
+        catch(Exception ex)
+        {
+            Console.WriteLine($"Error al procesar el archivo comparador: {ex.Message}");
+            return null;
+        }
+    }
+
     public List<string> GetFilesByPattern(string folderPath)
     {
         List<string> matchingFiles = new List<string>();
@@ -728,6 +921,14 @@ public class Main
 
         [JsonPropertyName("anio_fin")]
         public int AnioFin { get; set; }
+        
+    }
+    public class CMP
+    {
+        [JsonPropertyName("comparador")]
+        public bool Comparador { get; set; }
+        [JsonPropertyName("fecha_a_comparar")]
+        public string FechaAComparar { get; set; }
     }
 }
 
