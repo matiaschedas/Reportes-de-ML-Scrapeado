@@ -454,6 +454,7 @@ public class Main
         DateTime currentDate = currentDateTime.Date;
         string fechaActual = currentDate.ToString("dd-MM-yyyy");
         rutaDelDirectorio += "Reportes\\" + fechaActual + " " + nombreReporte + ".xlsx";
+        HashSet<(string anio, decimal promedio)> tuplaHistorico = new HashSet<(string anio, decimal promedio)>();
 
         for (; anioInicio <= anioFin; anioInicio++)
         {
@@ -475,10 +476,15 @@ public class Main
             {
                 decimal oficialUSD = await ObtenerPrecioVentaDolarOficial();
                 decimal blueUSD = await ObtenerPrecioVentaDolarBlue();
-                CompletarReporte(rutaDelDirectorio, results, anioInicio.ToString(), oficialUSD, blueUSD, anioInicio);
+                (string anio, decimal promedio) = CompletarReporte(rutaDelDirectorio, results, anioInicio.ToString(), oficialUSD, blueUSD, anioInicio);
+                tuplaHistorico.Add((anio, promedio));
                 //Console.WriteLine($"Terminados los resultados del {anioInicio}");
             }
         }
+        string rutaHistorico = AppContext.BaseDirectory;
+        rutaHistorico += "Historicos\\" + nombreReporte + " HISTORICO.xlsx";
+        CompletarHistorico(rutaHistorico, tuplaHistorico);
+
     }
 
     public async Task<List<Result>> Query(string busquedaUser)
@@ -703,11 +709,47 @@ public class Main
         //resultsFiltrado.RemoveAll(item => GetAttributeValue(item, "Año") != anioInicio.ToString());
         return resultsFiltrado;
     }
-    public bool CompletarReporte(string ruta, List<Result> results, string hoja, decimal dolarOficial, decimal dolarBlue, int anioInicio)
+
+    public void CompletarHistorico(string ruta, HashSet<(string anio, decimal promedio)> tuplaHistorico)
+    {
+        if (!File.Exists(ruta))
+        {
+            string rutaTemplate = Path.GetDirectoryName(ruta) + "\\Template HISTORICO.xlsx";
+            File.Copy(rutaTemplate, ruta);
+            Console.WriteLine("Se creo el historico: " + ruta);
+        }
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+        using (var package = new ExcelPackage(new FileInfo(ruta)))
+        {
+            var workbook = package.Workbook;
+            foreach (var tupla in tuplaHistorico)
+            {
+                var worksheet = workbook.Worksheets[tupla.anio];
+                if (worksheet == null)
+                    return;
+                var tabla = worksheet.Tables.FirstOrDefault();
+                DateTime currentDateTime = DateTime.Now;
+                DateTime currentDate = currentDateTime.Date;
+                string fechaActual = currentDate.ToString("dd-MM-yyyy");
+                if (tabla == null)
+                    return;
+                
+                int ultimaFilaTabla = tabla.Address.End.Row;
+                while (ultimaFilaTabla > tabla.Address.Start.Row && string.IsNullOrEmpty(worksheet.Cells[ultimaFilaTabla, 1].Text))
+                {
+                    ultimaFilaTabla--;
+                }
+
+                worksheet.Cells[ultimaFilaTabla + 1, 1].Value = fechaActual;
+                worksheet.Cells[ultimaFilaTabla + 1, 2].Value = tupla.promedio;
+            }
+            package.Save();
+        }
+    }
+    public (string anio, decimal promedio) CompletarReporte(string ruta, List<Result> results, string hoja, decimal dolarOficial, decimal dolarBlue, int anioInicio)
     {
         try
         {
-            
             var itemsOrdenados = results.OrderBy(item => item.Price).ToList();
 
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
@@ -772,15 +814,16 @@ public class Main
                 worksheet.Cells[3, 11].Value = promUSDOficialARS;
                 worksheet.Cells[3, 12].Value = dolarOficial;
                 worksheet.Cells[3, 13].Value = dolarBlue;
+                
 
                 package.Save();
-                return true;
+                return (hoja, promUSDBlueARS);
 
             }
         }
         catch (Exception ex)
         {
-            return false;
+            return (("",0));
         }
     }
     public bool CrearAbrirExcelReportes(string ruta, string hoja, string query)
