@@ -804,9 +804,9 @@ public class Main
                 promUSDOficialARS = cantARS > 0 ? (totalUSDOficial / cantARS) : 0;
  
                 promUSDBlueARS += promUSD;
-                promUSDBlueARS /= 2;
+                promUSDBlueARS = promUSD>0 ? promUSDBlueARS/2:promUSDBlueARS;
                 promUSDOficialARS += promUSD;
-                promUSDOficialARS /= 2;
+                promUSDOficialARS = promUSD>0 ? promUSDOficialARS / 2: promUSDOficialARS;
 
 
                 worksheet.Cells[3, 8].Value = promUSD;
