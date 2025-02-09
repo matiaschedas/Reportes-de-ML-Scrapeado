@@ -730,7 +730,7 @@ public class Main
                 var tabla = worksheet.Tables.FirstOrDefault();
                 DateTime currentDateTime = DateTime.Now;
                 DateTime currentDate = currentDateTime.Date;
-                string fechaActual = currentDate.ToString("dd-MM-yyyy");
+                string fechaActual = currentDate.ToString("dd/MM/yyyy");
                 if (tabla == null)
                     return;
                 
