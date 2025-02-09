@@ -462,6 +462,7 @@ public class Main
             string busqueda = busquedaUser + " " + anioInicio.ToString();
             busqueda = busqueda.Replace(" ", "%20");
             List<Result> results = await Query(busqueda);
+            results = BorrarCajaAutomatica(results);
 
 
             //imprimirResultados(results);
