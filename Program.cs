@@ -62,6 +62,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Globalization;
+using OfficeOpenXml.Table;
 
 
 public class Globals
@@ -229,6 +230,7 @@ public class Program
                     //tareas.Add(tarea2);
                 }
                 await Task.WhenAll(tareas);
+                Console.WriteLine("Proceso Completado al: 50%");
                 Console.WriteLine("Ejecutando Reporte del dia--------------------------------------------");
                 tareas = new List<Task>();
                 foreach (var archivo in rutas)
@@ -262,6 +264,9 @@ public class Main
     SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
     bool ReemplazoTokenTerminado = false;
     bool esPrimerIteracion = true;
+    SemaphoreSlim semaphoreProcesamiento = new SemaphoreSlim(1, 1);
+    List<string> procesamientos = new List<string>();
+    int porcentajeCompletado = 10;
 
     public bool EsFechaValida(string fecha)
     {
@@ -300,7 +305,7 @@ public class Main
         string fechaAnteriorText = fechaAnterior.ToString("dd-MM-yyyy");
         string rutaDelDirectorioAnterior = rutaDelDirectorio +  "Reportes\\" + fechaAnteriorText + " " + nombreReporte + ".xlsx";
         rutaDelDirectorio += "Reportes\\" + fechaActual + " " + nombreReporte + " COMPARADOR vs " + fechaAnteriorText + ".xlsx";
-
+        
         if (!(File.Exists(rutaDelDirectorioAnterior)))
         {
             Console.WriteLine("No es posible hacer un reporte comparador porque no existe el reporte de la fecha: "+ fechaAnteriorText);
@@ -316,12 +321,15 @@ public class Main
         int hoja = int.Parse(primerHoja);
         for(int i = 0; i<cantidadHojas; i++)
         {
+            
+            
             Console.WriteLine("Realizando consulta...");
             string busqueda = busquedaUser + " " + hoja.ToString();
             busqueda = busqueda.Replace(" ", "%20");
             List<Result> results = await Query(busqueda);
             results = BorrarCajaAutomatica(results);
             Console.WriteLine("Volcando resultados de " + busquedaUser + " " + hoja);
+            
 
             List<List<string>> tablaHoja = LeerHojaReporteAnterior(rutaDelDirectorioAnterior, i);
             bool creado = CrearAbrirExcelReportes(rutaDelDirectorio, hoja.ToString(), busquedaUser.Replace("%20", " "));
@@ -729,20 +737,35 @@ public class Main
                 if (worksheet == null)
                     return;
                 var tabla = worksheet.Tables.FirstOrDefault();
+                if (tabla == null)
+                    return;
                 DateTime currentDateTime = DateTime.Now;
                 DateTime currentDate = currentDateTime.Date;
                 string fechaActual = currentDate.ToString("dd/MM/yyyy");
-                if (tabla == null)
-                    return;
                 
                 int ultimaFilaTabla = tabla.Address.End.Row;
                 while (ultimaFilaTabla > tabla.Address.Start.Row && string.IsNullOrEmpty(worksheet.Cells[ultimaFilaTabla, 1].Text))
                 {
                     ultimaFilaTabla--;
                 }
+                ultimaFilaTabla++;
+                worksheet.Cells[ultimaFilaTabla, 1].Value = fechaActual;
+                worksheet.Cells[ultimaFilaTabla, 2].Value = tupla.promedio;
+                
 
-                worksheet.Cells[ultimaFilaTabla + 1, 1].Value = fechaActual;
-                worksheet.Cells[ultimaFilaTabla + 1, 2].Value = tupla.promedio;
+                string nombreTabla = tabla.Name;
+                // Crear una nueva tabla con el rango expandido
+                int inicioFila = tabla.Address.Start.Row; // Mantener la fila inicial
+                int inicioColumna = tabla.Address.Start.Column;
+                int finColumna = tabla.Address.End.Column;
+                int nuevaFilaFinal = ultimaFilaTabla; // La última fila nueva
+                string nuevoRango = worksheet.Cells[inicioFila, inicioColumna, nuevaFilaFinal, finColumna].Address;
+                worksheet.Tables.Delete(tabla);
+
+
+                var nuevaTabla = worksheet.Tables.Add(worksheet.Cells[nuevoRango], nombreTabla);
+                nuevaTabla.ShowHeader = true;
+                nuevaTabla.TableStyle = TableStyles.Medium2;
             }
             package.Save();
         }
