@@ -63,6 +63,7 @@ using System.Threading;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Globalization;
 using OfficeOpenXml.Table;
+using OfficeOpenXml.Drawing.Chart;
 
 
 public class Globals
@@ -762,19 +763,17 @@ public class Main
                 worksheet.Cells[ultimaFilaTabla, 2].Value = tupla.promedio;
                 
 
-                string nombreTabla = tabla.Name;
-                // Crear una nueva tabla con el rango expandido
-                int inicioFila = tabla.Address.Start.Row; // Mantener la fila inicial
-                int inicioColumna = tabla.Address.Start.Column;
-                int finColumna = tabla.Address.End.Column;
-                int nuevaFilaFinal = ultimaFilaTabla; // La última fila nueva
-                string nuevoRango = worksheet.Cells[inicioFila, inicioColumna, nuevaFilaFinal, finColumna].Address;
-                worksheet.Tables.Delete(tabla);
+                string nuevaCeldaFin = worksheet.Cells[ultimaFilaTabla, tabla.Address.End.Column].Address;
+                tabla.TableXml.InnerXml = tabla.TableXml.InnerXml.Replace(tabla.Address.End.Address, nuevaCeldaFin);
+                var chart = worksheet.Drawings.OfType<ExcelChart>().FirstOrDefault();
+                if (chart != null)
+                {
+                    string nuevaDireccionX = worksheet.Cells[tabla.Address.Start.Row + 1, tabla.Address.Start.Column, ultimaFilaTabla, tabla.Address.Start.Column].Address;
+                    string nuevaDireccionY = worksheet.Cells[tabla.Address.Start.Row + 1, tabla.Address.Start.Column + 1, ultimaFilaTabla, tabla.Address.Start.Column + 1].Address;
 
-
-                var nuevaTabla = worksheet.Tables.Add(worksheet.Cells[nuevoRango], nombreTabla);
-                nuevaTabla.ShowHeader = true;
-                nuevaTabla.TableStyle = TableStyles.Medium2;
+                    chart.Series[0].XSeries = $"'{worksheet.Name}'!{nuevaDireccionX}";
+                    chart.Series[0].Series = $"'{worksheet.Name}'!{nuevaDireccionY}";
+                }
             }
             package.Save();
         }
