@@ -125,11 +125,15 @@ public class Program
                     if (fechaMasReciente == new DateTime(2000,1,1))
                     {
                         Console.WriteLine("Error, no se pudo obtener la fecha mas reciente de los reportes anteriores");
+                        Console.WriteLine("Proceso Completado con Exito, Presiona Enter para salir...");
+                        Console.ReadLine();
                         return;
                     }
                     if(fechaMasReciente == DateTime.Today)
                     {
                         Console.WriteLine("Error, no se puede generar el reporte porque ya fue generado para el dia de hoy");
+                        Console.WriteLine("Proceso Completado con Exito, Presiona Enter para salir...");
+                        Console.ReadLine();
                         return;
                     }
                     fechaAComparar = fechaMasReciente.ToString("dd-MM-yyyy");
@@ -213,10 +217,14 @@ public class Program
                 if (!(rutas.Count > 0))
                 {
                     Console.WriteLine("No se puede realizar el reporte porque no hay ningun archivo de busqueda");
+                    Console.WriteLine("Proceso Completado con Exito, Presiona Enter para salir...");
+                    Console.ReadLine();
                     return;
                 }
                 if (mainInstance.EsFechaValida(fechaAComparar)==false){
                     Console.WriteLine("No se puede realizar el reporte porque la fecha a comparar no es valida");
+                    Console.WriteLine("Presiona Enter para salir...");
+                    Console.ReadLine();
                     return;
                 }
                 var tareas = new List<Task>();
@@ -241,8 +249,9 @@ public class Program
                 }
                 await Task.WhenAll(tareas);
             }
-            
-           
+
+            Console.WriteLine("Proceso Completado con Exito, Presiona Enter para salir...");
+            Console.ReadLine();
         }
         catch (Exception ex)
         {
