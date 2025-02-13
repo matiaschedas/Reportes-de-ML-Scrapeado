@@ -1,0 +1,33 @@
+Reportes de ML.exe requiere 3 archivos txt como input dentro de la carpeta raiz:
+
+1) archivos de busqueda: estos txt son los que el script buscara en ML y generara los reportes, contienen un json como este ejemplo:
+{
+  "nombre_reporte": "ford fiesta titanium",
+  "busqueda": "ford fiesta titanium",
+  "anio_inicio": 2011,
+  "anio_fin": 2018
+}
+
+donde:
+nombre_reporte: se indica el nombre del xlsx del reporte final
+busqueda: se indica que auto va a buscar en ML
+anio_inicio: indica el año del auto desde el cual se buscara
+anio_fin: indica el año del auto hasta el cual se buscara
+
+*estos archivos de busqueda deberan ser nombrados como: busqueda1.txt, busqueda2.txt, etc y el usuario podra generar tantos como requiera buscar
+
+2) archivo Comparador.txt, este contiene un json como este ejemplo:
+{
+  "comparador": true,
+  "fecha_a_comparar": "anterior"
+}
+
+donde:
+comparador: indica si se quiere o no realizar ademas del reporte del dia otro reporte que compare al reporte de ese dia con uno de un dia anterior
+fecha_a_comparar: indica contra que reporte anterior se comparara el de hoy, este input puede ser: una fecha cualquiera en el formato "dd-mm-yyyy" 
+por lo cual se va a comparar el reporte de hoy contra el reporte de esa fecha particular, puede ser la palabra "anterior", en este caso se comparara contra el ultimo reporte que habia o puede ser "ayer" ( para todos los casos debera existir el reporte de esa fecha)
+
+3) Token.txt, mantiene el token necesario para ejecutar, No tocarlo.
+
+Por ultimo el proceso usa un archivo "template HISTORICO.xlsx" el cual sirve para generar nuevos historicos de busqueda de autos, es necesario que este template se mantenga original y en la carpeta //Historicos
+*El proceso "Reportes de ML.exe" puede correr desatendido si todos los inputs txt estan correctos, por lo cual se puede schedulear en el programador de tareas de windows

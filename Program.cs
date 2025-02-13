@@ -86,6 +86,10 @@ public class Program
             string rutaDelDirectorio = AppContext.BaseDirectory;
             rutaDelDirectorio += "token.txt";
             var mainInstance = new Main(globales);
+            var pathHistoricos = AppContext.BaseDirectory + "Historicos";
+            var pathReportes = AppContext.BaseDirectory + "Reportes";
+            mainInstance.CrearCarpeta(pathHistoricos);
+            mainInstance.CrearCarpeta(pathReportes);
             string token = mainInstance.LeeerTokenDesdeArchivo(rutaDelDirectorio);
             globales.Token = token;
             bool ingresoCorrecto = false;
@@ -285,6 +289,14 @@ public class Main
             return fechaConvertida.Date < DateTime.Now.Date;
         }
         return false;
+    }
+
+    public void CrearCarpeta(string folderPath)
+    {
+        if (!Directory.Exists(folderPath))
+        {
+            Directory.CreateDirectory(folderPath);
+        }
     }
 
     public DateTime FechaMasReciente(string ruta)
@@ -743,7 +755,7 @@ public class Main
     {
         if (!File.Exists(ruta))
         {
-            string rutaTemplate = Path.GetDirectoryName(ruta) + "\\Template HISTORICO.xlsx";
+            string rutaTemplate = Path.GetDirectoryName(ruta).Replace("\\Historicos", "") + "\\Template HISTORICO.xlsx";
             File.Copy(rutaTemplate, ruta);
             Console.WriteLine("Se creo el historico: " + ruta);
         }
@@ -940,6 +952,7 @@ public class Main
             return false;
         }
     }
+    
     public async Task<decimal> ObtenerPrecioVentaDolarOficial()
     {
         
