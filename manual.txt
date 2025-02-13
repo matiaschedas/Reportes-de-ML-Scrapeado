@@ -29,5 +29,5 @@ por lo cual se va a comparar el reporte de hoy contra el reporte de esa fecha pa
 
 3) Token.txt, mantiene el token necesario para ejecutar, No tocarlo.
 
-Por ultimo el proceso usa un archivo "template HISTORICO.xlsx" el cual sirve para generar nuevos historicos de busqueda de autos, es necesario que este template se mantenga original y en la carpeta //Historicos
+Por ultimo el proceso usa un archivo "template HISTORICO.xlsx" el cual sirve para generar nuevos historicos de busqueda de autos, es necesario que este template se mantenga original y en la carpeta raiz
 *El proceso "Reportes de ML.exe" puede correr desatendido si todos los inputs txt estan correctos, por lo cual se puede schedulear en el programador de tareas de windows
