@@ -102,7 +102,7 @@ public class Program
             string reporteComparador = "";
             bool EsReporteComparador = false;
             string fechaAComparar = "";
-       
+            HttpClient client = new HttpClient();
             string rutaComparador = AppContext.BaseDirectory;
             rutaComparador += "Comparador.txt";
             CMP comparador = mainInstance.obtenerCMP(rutaComparador);
@@ -126,14 +126,14 @@ public class Program
                     if (fechaMasReciente == new DateTime(2000,1,1))
                     {
                         Console.WriteLine("Error, no se pudo obtener la fecha mas reciente de los reportes anteriores");
-                        Console.WriteLine("Proceso Completado con Exito, Presiona Enter para salir...");
+                        Console.WriteLine("Presiona Enter para salir...");
                         Console.ReadLine();
                         return;
                     }
                     if(fechaMasReciente == DateTime.Today)
                     {
                         Console.WriteLine("Error, no se puede generar el reporte porque ya fue generado para el dia de hoy");
-                        Console.WriteLine("Proceso Completado con Exito, Presiona Enter para salir...");
+                        Console.WriteLine("Presiona Enter para salir...");
                         Console.ReadLine();
                         return;
                     }
@@ -198,7 +198,7 @@ public class Program
                             }
                         }
                     }
-                    await mainInstance.Procesamiento(rutaDelDirectorio, nombreReporte, anioInicio, anioFin, busquedaUser);
+                    await mainInstance.Procesamiento(rutaDelDirectorio, nombreReporte, anioInicio, anioFin, busquedaUser, client);
                 }
                 else
                 {
@@ -207,7 +207,7 @@ public class Program
                     foreach (var archivo in rutas)
                     {
                         Busqueda busquedaPorTxt = mainInstance.obtenerBusqueda(archivo);
-                        Task tarea = mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query);
+                        Task tarea = mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query, client);
                         tareas.Add(tarea);
                     }
                     await Task.WhenAll(tareas);
@@ -218,7 +218,7 @@ public class Program
                 if (!(rutas.Count > 0))
                 {
                     Console.WriteLine("No se puede realizar el reporte porque no hay ningun archivo de busqueda");
-                    Console.WriteLine("Proceso Completado con Exito, Presiona Enter para salir...");
+                    Console.WriteLine("Presiona Enter para salir...");
                     Console.ReadLine();
                     return;
                 }
@@ -233,7 +233,7 @@ public class Program
                 foreach (var archivo in rutas)
                 {
                     Busqueda busquedaPorTxt = mainInstance.obtenerBusqueda(archivo);
-                    Task tarea =  mainInstance.ProcesamientoComparador(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query, fechaAComparar);
+                    Task tarea =  mainInstance.ProcesamientoComparador(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query, fechaAComparar, client);
                     //Task tarea2 = mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query);
                     tareas.Add(tarea);
                     //tareas.Add(tarea2);
@@ -245,7 +245,7 @@ public class Program
                 foreach (var archivo in rutas)
                 {
                     Busqueda busquedaPorTxt = mainInstance.obtenerBusqueda(archivo);
-                    Task tarea = mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query);
+                    Task tarea = mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query, client);
                     tareas.Add(tarea);
                 }
                 await Task.WhenAll(tareas);
@@ -306,7 +306,7 @@ public class Main
         return fechaMasReciente;
     }
 
-    public async Task ProcesamientoComparador(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser, string fechaAComparar)
+    public async Task ProcesamientoComparador(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser, string fechaAComparar, HttpClient client)
     {
         DateTime currentDateTime = DateTime.Now;
         DateTime currentDate = currentDateTime.Date;
@@ -336,7 +336,8 @@ public class Main
             Console.WriteLine("Realizando consulta...");
             string busqueda = busquedaUser + " " + hoja.ToString();
             busqueda = busqueda.Replace(" ", "%20");
-            List<Result> results = await Query(busqueda);
+            
+            List<Result> results = await Query(busqueda, client);
             results = BorrarCajaAutomatica(results);
             Console.WriteLine("Volcando resultados de " + busquedaUser + " " + hoja);
             
@@ -466,7 +467,7 @@ public class Main
         return tabla;
     }
 
-    public async Task Procesamiento(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser)
+    public async Task Procesamiento(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser, HttpClient client)
     {
         DateTime currentDateTime = DateTime.Now;
         DateTime currentDate = currentDateTime.Date;
@@ -479,7 +480,8 @@ public class Main
             Console.WriteLine("Realizando consulta...");
             string busqueda = busquedaUser + " " + anioInicio.ToString();
             busqueda = busqueda.Replace(" ", "%20");
-            List<Result> results = await Query(busqueda);
+            
+            List<Result> results = await Query(busqueda, client);
             results = BorrarCajaAutomatica(results);
 
 
@@ -506,7 +508,7 @@ public class Main
 
     }
 
-    public async Task<List<Result>> Query(string busquedaUser)
+    public async Task<List<Result>> Query(string busquedaUser, HttpClient client)
     {
         string query = "search?q=<BUSQUEDA>&status=active&limit=50";
         int offset = 0;
@@ -516,7 +518,7 @@ public class Main
         string url = "https://api.mercadolibre.com/sites/MLA/" + queryFinal;
         string token = _globals.Token;
 
-        using (HttpClient client = new HttpClient())
+        using (client = new HttpClient())
         {
             client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
             List<Result> results = new List<Result>();
@@ -531,24 +533,39 @@ public class Main
                     if (esPrimerIteracion)
                     {
                         await semaphore.WaitAsync();
-                        if (!ReemplazoTokenTerminado)
+                        try
                         {
-                            response = await client.GetAsync(url);
-                            errorDetails = await response.Content.ReadAsStringAsync();
-                            if (!response.IsSuccessStatusCode)
+                            if (!ReemplazoTokenTerminado)
                             {
-                                var jsonObject = JsonSerializer.Deserialize<JsonElement>(errorDetails);
-                                string message = jsonObject.GetProperty("message").GetString() ?? new String("");
-
-                                if (message == "invalid access token")
+                                response = await client.GetAsync(url);
+                                errorDetails = await response.Content.ReadAsStringAsync();
+                                if (!response.IsSuccessStatusCode)
                                 {
-                                    string newAccessToken = await Refresh();
-                                    token = newAccessToken;
-                                    _globals.Token = newAccessToken;
-                                    string rutaDelDirectorio = AppContext.BaseDirectory;
-                                    rutaDelDirectorio += "token.txt";
-                                    ReemplazarContenidoArchivo(rutaDelDirectorio, newAccessToken);
+                                    var jsonObject = JsonSerializer.Deserialize<JsonElement>(errorDetails);
+                                    string message = jsonObject.GetProperty("message").GetString() ?? new String("");
+
+                                    if (message == "invalid access token")
+                                    {
+                                        string newAccessToken = await Refresh();
+                                        token = newAccessToken;
+                                        _globals.Token = newAccessToken;
+                                        string rutaDelDirectorio = AppContext.BaseDirectory;
+                                        rutaDelDirectorio += "token.txt";
+                                        ReemplazarContenidoArchivo(rutaDelDirectorio, newAccessToken);
+                                    }
+                                    if (client.DefaultRequestHeaders.Contains("Authorization"))
+                                    {
+                                        client.DefaultRequestHeaders.Remove("Authorization");
+                                    }
+                                    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {_globals.Token}");
+                                    response = await client.GetAsync(url);
                                 }
+                                await Task.Delay(3000);
+                                ReemplazoTokenTerminado = true;
+                                //semaphore.Release();
+                            }
+                            else
+                            {
                                 if (client.DefaultRequestHeaders.Contains("Authorization"))
                                 {
                                     client.DefaultRequestHeaders.Remove("Authorization");
@@ -556,20 +573,12 @@ public class Main
                                 client.DefaultRequestHeaders.Add("Authorization", $"Bearer {_globals.Token}");
                                 response = await client.GetAsync(url);
                             }
-                            await Task.Delay(3000);
-                            ReemplazoTokenTerminado = true;
+                            esPrimerIteracion = false;
+                        }
+                        finally
+                        {
                             semaphore.Release();
                         }
-                        else
-                        {
-                            if (client.DefaultRequestHeaders.Contains("Authorization"))
-                            {
-                                client.DefaultRequestHeaders.Remove("Authorization");
-                            }
-                            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {_globals.Token}");
-                            response = await client.GetAsync(url);
-                        }
-                        esPrimerIteracion = false;
                     }
                     else
                     {
@@ -599,15 +608,16 @@ public class Main
                         Console.WriteLine($"Detalles del error: {errorDetails}");
                         finBucle = true;
                     }
+                    offsetQuery = "&offset=" + offset.ToString();
+                    queryFinal = query + offsetQuery;
+                    url = "https://api.mercadolibre.com/sites/MLA/" + queryFinal;
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Ocurrió un error: {ex.Message}");
                     finBucle = true;
+                    semaphore.Release();
                 }
-                offsetQuery = "&offset=" + offset.ToString();
-                queryFinal = query + offsetQuery;
-                url = "https://api.mercadolibre.com/sites/MLA/" + queryFinal;
             }
             return results;  
         }
