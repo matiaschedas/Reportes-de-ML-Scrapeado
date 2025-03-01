@@ -64,6 +64,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Globalization;
 using OfficeOpenXml.Table;
 using OfficeOpenXml.Drawing.Chart;
+using System.IO;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
 public class Globals
@@ -110,6 +112,15 @@ public class Program
             string rutaComparador = AppContext.BaseDirectory;
             rutaComparador += "Comparador.txt";
             CMP comparador = mainInstance.obtenerCMP(rutaComparador);
+            if (comparador.EliminarAnterior == true)
+            {
+                mainInstance.BorrarAnteriorEjecucionDeTodosLosHistoricos(pathHistoricos);
+                mainInstance.BorrarReportesAnteriorEjecucion();
+                Console.WriteLine("Anterior ejecucion eliminada con exito");
+                Console.WriteLine("Presiona Enter para salir...");
+                Console.ReadLine();
+                return;
+            }
             if (comparador.Comparador == true)
             {
                 EsReporteComparador = true;
@@ -152,7 +163,7 @@ public class Program
                     while (!ingresoCorrecto)
                     {
                         Console.WriteLine("Por favor, ingresa el nombre del reporte a guardar:");
-                        nombreReporte = Console.ReadLine() ?? String.Empty;
+                        nombreReporte = Console.ReadLine() ?? System.String.Empty;
                         if (nombreReporte.Replace(" ", "") != "")
                         {
                             ingresoCorrecto = true;
@@ -162,7 +173,7 @@ public class Program
                     while (!ingresoCorrecto)
                     {
                         Console.WriteLine("Por favor, ingresa tu busqueda de ML:");
-                        busquedaUser = Console.ReadLine() ?? String.Empty;
+                        busquedaUser = Console.ReadLine() ?? System.String.Empty;
                         if (busquedaUser.Replace(" ", "") != "")
                         {
                             ingresoCorrecto = true;
@@ -173,7 +184,7 @@ public class Program
                     while (!ingresoCorrecto)
                     {
                         Console.WriteLine("Ingrese año de inicio");
-                        anioInicioStr = Console.ReadLine() ?? String.Empty;
+                        anioInicioStr = Console.ReadLine() ?? System.String.Empty;
                         if (!int.TryParse(anioInicioStr, out int result))
                         {
                             ingresoCorrecto = false;
@@ -188,7 +199,7 @@ public class Program
                     while (!ingresoCorrecto)
                     {
                         Console.WriteLine("Ingrese año de fin");
-                        anioFinStr = Console.ReadLine() ?? String.Empty;
+                        anioFinStr = Console.ReadLine() ?? System.String.Empty;
                         if (!int.TryParse(anioFinStr, out int result))
                         {
                             ingresoCorrecto = false;
@@ -282,6 +293,45 @@ public class Main
     List<string> procesamientos = new List<string>();
     int porcentajeCompletado = 10;
 
+    public void BorrarAnteriorEjecucionDelHistorico(string pathHistorico)
+    {
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+        using (var package = new ExcelPackage(pathHistorico))
+        {
+            // Recorre todas las hojas del archivo
+            foreach (var worksheet in package.Workbook.Worksheets)
+            {
+                // Encuentra la última fila con datos en la columna A
+                int lastRow = worksheet.Dimension.End.Row;
+
+                // Si la última fila tiene datos en la columna A, la elimina
+                if (!string.IsNullOrEmpty(worksheet.Cells[lastRow, 1].Text))
+                {
+                    worksheet.DeleteRow(lastRow);
+                }
+            }
+            // Guarda los cambios en el archivo Excel
+            package.Save();
+        }
+    }
+
+    public void BorrarAnteriorEjecucionDeTodosLosHistoricos(string pathHistoricos)
+    {
+        var files = Directory.GetFiles(pathHistoricos, "*.xlsx");
+        foreach (var file in files)
+        {
+            BorrarAnteriorEjecucionDelHistorico(file);
+        }
+    }
+
+    public void BorrarReportesAnteriorEjecucion()
+    {
+        string rutaDelDirectorio = AppContext.BaseDirectory;
+        rutaDelDirectorio += "\\Reportes";
+        DateTime fechaMasReciente = FechaMasReciente(rutaDelDirectorio);
+        BorrarArchivosPorFecha(rutaDelDirectorio, fechaMasReciente);
+    }
+
     public bool EsFechaValida(string fecha)
     {
         if (DateTime.TryParse(fecha, out DateTime fechaConvertida))
@@ -316,6 +366,38 @@ public class Main
             }
         }
         return fechaMasReciente;
+    }
+
+    public void BorrarArchivosPorFecha(string path, DateTime fecha)
+    {
+        string datePrefix = fecha.ToString("dd-MM-yyyy");
+
+        if (!Directory.Exists(path))
+        {
+            throw new DirectoryNotFoundException("El directorio no existe: " + path);
+        }
+        var files = Directory.GetFiles(path, "*.xlsx");
+
+        // Recorre todos los archivos
+        foreach (var file in files)
+        {
+            // Obtiene el nombre del archivo sin la ruta
+            string fileName = Path.GetFileName(file);
+            // Verifica si el nombre del archivo comienza con la fecha dada
+            if (fileName.StartsWith(datePrefix))
+            {
+                try
+                {
+                    // Elimina el archivo
+                    File.Delete(file);
+                    Console.WriteLine($"Archivo eliminado: {fileName}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"No se pudo eliminar el archivo {fileName}: {ex.Message}");
+                }
+            }
+        }
     }
 
     public async Task ProcesamientoComparador(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser, string fechaAComparar, HttpClient client)
@@ -554,7 +636,7 @@ public class Main
                                 if (!response.IsSuccessStatusCode)
                                 {
                                     var jsonObject = JsonSerializer.Deserialize<JsonElement>(errorDetails);
-                                    string message = jsonObject.GetProperty("message").GetString() ?? new String("");
+                                    string message = jsonObject.GetProperty("message").GetString() ?? System.String.Empty;
 
                                     if (message == "invalid access token")
                                     {
@@ -1124,6 +1206,8 @@ public class Main
         public bool Comparador { get; set; }
         [JsonPropertyName("fecha_a_comparar")]
         public string FechaAComparar { get; set; }
+        [JsonPropertyName("eliminar_anterior")]
+        public bool EliminarAnterior {  get; set; }
     }
 }
 
