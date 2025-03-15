@@ -576,9 +576,9 @@ public class Main
             busqueda = busqueda.Replace(" ", "%20");
             
             List<Result> results = await Query(busqueda, client);
+            bool existe = verificarIdExiste(results, "MLA1478269101");
             results = BorrarCajaAutomatica(results);
-
-
+            existe = verificarIdExiste(results, "MLA1478269101");
             //imprimirResultados(results);
             Console.WriteLine("Volcando resultados de " + busquedaUser + " " + anioInicio);
 
@@ -717,6 +717,16 @@ public class Main
         }
     }
 
+    public bool verificarIdExiste(List<Result> results, string ID)
+    {
+        foreach (Result result in results)
+        {
+            if (ID == result.Id)
+                return true;
+        }
+        return false;
+    }
+
     public void imprimirResultados(List<Result> results)
     {
         foreach (var result in results)
@@ -828,7 +838,14 @@ public class Main
     public List<Result> BorrarCajaAutomatica(List<Result> results)
     {
         List<Result> resultsFiltrado = results.ToList();
-        resultsFiltrado.RemoveAll(item => GetAttributeValue(item, "Transmisión") != "Manual");
+        resultsFiltrado.RemoveAll(item => GetAttributeValue(item, "Transmisión") == "Automática");
+        //resultsFiltrado.RemoveAll(item => GetAttributeValue(item, "Año") != anioInicio.ToString());
+        return resultsFiltrado;
+    }
+
+    public List<Result> BorrarCajaManual(List<Result> results) {
+        List<Result> resultsFiltrado = results.ToList();
+        resultsFiltrado.RemoveAll(item => GetAttributeValue(item, "Transmisión") == "Manual");
         //resultsFiltrado.RemoveAll(item => GetAttributeValue(item, "Año") != anioInicio.ToString());
         return resultsFiltrado;
     }
