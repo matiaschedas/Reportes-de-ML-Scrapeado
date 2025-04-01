@@ -604,12 +604,12 @@ public class Main
 
     public async Task<List<Result>> Query(string busquedaUser, HttpClient client)
     {
-        string query = "<BUSQUEDA>&status=active&limit=50";
+        string query = "search?q=<BUSQUEDA>&status=active&limit=50";
         int offset = 0;
         string offsetQuery = "&offset=" + offset.ToString();
         query = query.Replace("<BUSQUEDA>", busquedaUser);
         string queryFinal = query + offsetQuery;
-        string url = "https://api.mercadolibre.com/products/search?site_id=MLA&q=" + queryFinal;
+        string url = "https://api.mercadolibre.com/sites/MLA/" + queryFinal;
         string token = _globals.Token;
 
         using (client = new HttpClient())
@@ -703,7 +703,7 @@ public class Main
                     }
                     offsetQuery = "&offset=" + offset.ToString();
                     queryFinal = query + offsetQuery;
-                    url = "https://api.mercadolibre.com/products/search?site_id=MLA&q=" + queryFinal;
+                    url = "https://api.mercadolibre.com/sites/MLA/" + queryFinal;
                 }
                 catch (Exception ex)
                 {
