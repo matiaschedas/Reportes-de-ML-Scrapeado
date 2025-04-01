@@ -2,8 +2,8 @@
 
 //Client Secret: GWR6eZHrAZu47zusWIX8MinrMnSOjhYh
 //App ID: 2398820623563499
-//Redirect URI: https://www.matchkraft.com/
-//code: https://matchkraft.com/?code=TG-6794214500e5ab0001ebfa0d-63251640
+//Redirect URI: https://verdemercado.com.ar/
+//code: TG-67eb57804f34a800019fcf84-63251640
 //codigo postman: 
 /*
  * 
@@ -21,12 +21,12 @@ curl -X POST \
 Respuesta:
 
 {
-    "access_token": "APP_USR-2398820623563499-012614-5826e66cbd8134ea750553cb6c8571bb-63251640",
+    "access_token": "APP_USR-2398820623563499-040114-4a19c8df2b5e38a9a59de91f6af4f7e1-63251640",
     "token_type": "Bearer",
     "expires_in": 21600,
-    "scope": "offline_access read write",
+    "scope": "offline_access read",
     "user_id": 63251640,
-    "refresh_token": "TG-6794216100e5ab0001ebfb44-63251640"
+    "refresh_token": "TG-67ec305e655b430001313ae7-63251640"
 }
 
 uso de api:
@@ -72,8 +72,8 @@ public class Globals
 {
     public string ClientSecret { get; set; } = "GWR6eZHrAZu47zusWIX8MinrMnSOjhYh";
     public string AppID { get; set; } = "2398820623563499";
-    public string RefreshToken { get; set; } = "TG-6794216100e5ab0001ebfb44-63251640";
-    public string Token { get; set; } = "APP_USR-2398820623563499-012614-5826e66cbd8134ea750553cb6c8571bb-63251640";
+    public string RefreshToken { get; set; } = "TG-67eb579fb8f51f0001e4b390-63251640";
+    public string Token { get; set; } = "APP_USR-2398820623563499-033123-3d0e381174c25b915eb04dbd62d46505-63251640";
 
 }
 
@@ -604,12 +604,12 @@ public class Main
 
     public async Task<List<Result>> Query(string busquedaUser, HttpClient client)
     {
-        string query = "search?q=<BUSQUEDA>&status=active&limit=50";
+        string query = "<BUSQUEDA>&status=active&limit=50";
         int offset = 0;
         string offsetQuery = "&offset=" + offset.ToString();
         query = query.Replace("<BUSQUEDA>", busquedaUser);
         string queryFinal = query + offsetQuery;
-        string url = "https://api.mercadolibre.com/sites/MLA/" + queryFinal;
+        string url = "https://api.mercadolibre.com/products/search?site_id=MLA&q=" + queryFinal;
         string token = _globals.Token;
 
         using (client = new HttpClient())
@@ -638,15 +638,14 @@ public class Main
                                     var jsonObject = JsonSerializer.Deserialize<JsonElement>(errorDetails);
                                     string message = jsonObject.GetProperty("message").GetString() ?? System.String.Empty;
 
-                                    if (message == "invalid access token")
-                                    {
-                                        string newAccessToken = await Refresh();
-                                        token = newAccessToken;
-                                        _globals.Token = newAccessToken;
-                                        string rutaDelDirectorio = AppContext.BaseDirectory;
-                                        rutaDelDirectorio += "token.txt";
-                                        ReemplazarContenidoArchivo(rutaDelDirectorio, newAccessToken);
-                                    }
+                                   
+                                    string newAccessToken = await Refresh();
+                                    token = newAccessToken;
+                                    _globals.Token = newAccessToken;
+                                    string rutaDelDirectorio = AppContext.BaseDirectory;
+                                    rutaDelDirectorio += "token.txt";
+                                    ReemplazarContenidoArchivo(rutaDelDirectorio, newAccessToken);
+                                    
                                     if (client.DefaultRequestHeaders.Contains("Authorization"))
                                     {
                                         client.DefaultRequestHeaders.Remove("Authorization");
@@ -704,7 +703,7 @@ public class Main
                     }
                     offsetQuery = "&offset=" + offset.ToString();
                     queryFinal = query + offsetQuery;
-                    url = "https://api.mercadolibre.com/sites/MLA/" + queryFinal;
+                    url = "https://api.mercadolibre.com/products/search?site_id=MLA&q=" + queryFinal;
                 }
                 catch (Exception ex)
                 {
