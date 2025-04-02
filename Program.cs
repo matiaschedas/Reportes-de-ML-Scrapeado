@@ -384,18 +384,17 @@ public class Main
         int hoja = int.Parse(primerHoja);
         for(int i = 0; i<cantidadHojas; i++)
         {
-            
-            
             Console.WriteLine("Realizando consulta...");
             string busqueda = busquedaUser + " " + hoja.ToString();
-            busqueda = busqueda.Replace(" ", "%20");
+            busqueda = busqueda.Replace(" ", "-");
+            busqueda += "_Desde_";
             List<Auto> results = new List<Auto>();
-            results = await Query(busqueda) ?? new List<Auto>();
+            results = await Query(busqueda);
             //results = BorrarCajaAutomatica(results);
             Console.WriteLine("Volcando resultados de " + busquedaUser + " " + hoja);
 
             List<List<string>> tablaHoja = new List<List<string>>();
-            tablaHoja = LeerHojaReporteAnterior(rutaDelDirectorioAnterior, i) ?? new List<List<string>>();
+            tablaHoja = LeerHojaReporteAnterior(rutaDelDirectorioAnterior, i);
             bool creado = CrearAbrirExcelReportes(rutaDelDirectorio, hoja.ToString(), busquedaUser.Replace("%20", " "));
             if (!creado)
             {
@@ -452,24 +451,26 @@ public class Main
 
     public List<Auto> FiltrarResultadosRepetidos(List<Auto> results, List<List<string>> tabla)
     {
+        //esta funcion se queda con todos los autos que tengan o un ID nuevo (respecto al reporte anterior es decir tabla) o un precio nuevo
         var idsYPrecios = new HashSet<(string, decimal)>();
         foreach(var fila in tabla)
         {
             decimal precio = decimal.Parse(fila[3].ToString());
-            idsYPrecios.Add((fila[0].Replace("-",""), precio));
+            idsYPrecios.Add((fila[0], precio));
         }
         results.RemoveAll(r => idsYPrecios.Contains((r.ID, r.Precio ?? decimal.Zero)));
         return results;
     }
     public List<Auto> ObtenerCambiaronPrecio(List<Auto> results, List<List<string>> tabla)
     {
+        //esta funcion se queda con los autos que tengan un ID que ya existia en el reporte anterior es decir en tabla pero que ahora tiene otro precio
         var idsYPrecios = new HashSet<(string, decimal)>();
         var ids = new HashSet<string>();
         foreach(var fila in tabla)
         {
             decimal precio = decimal.Parse(fila[3].ToString());
-            idsYPrecios.Add((fila[0].Replace("-", ""), precio));
-            ids.Add(fila[0].Replace("-", ""));
+            idsYPrecios.Add((fila[0], precio));
+            ids.Add(fila[0]);
         }
         return results.Where(r => ids.Contains(r.ID) && !idsYPrecios.Contains((r.ID, r.Precio ?? decimal.Zero))).ToList();
     }
@@ -780,7 +781,6 @@ public class Main
                     string kms = result.Kilometros;
                     decimal precio = result.Precio ?? decimal.Zero;
                     string id = result.ID;
-                    id = id.Substring(0, 3) + "-" + id.Substring(3, id.Length-3);
                     string moneda = result.Moneda;
                     if (moneda == "US$")
                     {
