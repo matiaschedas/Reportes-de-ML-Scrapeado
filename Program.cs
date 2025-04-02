@@ -172,7 +172,7 @@ public class Program
                             }
                         }
                     }
-                    await mainInstance.Procesamiento(rutaDelDirectorio, nombreReporte, anioInicio, anioFin, busquedaUser);
+                    await mainInstance.Procesamiento(rutaDelDirectorio, nombreReporte, anioInicio, anioFin, busquedaUser, new List<string>());
                 }
                 else
                 {
@@ -181,7 +181,7 @@ public class Program
                     foreach (var archivo in rutas)
                     {
                         Busqueda busquedaPorTxt = mainInstance.obtenerBusqueda(archivo);
-                        Task tarea = mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query);
+                        Task tarea = mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query, busquedaPorTxt.NoBuscar);
                         tareas.Add(tarea);
                     }
                     await Task.WhenAll(tareas);
@@ -207,7 +207,7 @@ public class Program
                 foreach (var archivo in rutas)
                 {
                     Busqueda busquedaPorTxt = mainInstance.obtenerBusqueda(archivo);
-                    Task tarea =  mainInstance.ProcesamientoComparador(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query, fechaAComparar);
+                    Task tarea =  mainInstance.ProcesamientoComparador(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query, fechaAComparar, busquedaPorTxt.NoBuscar);
                     //Task tarea2 = mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query);
                     tareas.Add(tarea);
                     //tareas.Add(tarea2);
@@ -219,7 +219,7 @@ public class Program
                 foreach (var archivo in rutas)
                 {
                     Busqueda busquedaPorTxt = mainInstance.obtenerBusqueda(archivo);
-                    Task tarea = mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query);
+                    Task tarea = mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query, busquedaPorTxt.NoBuscar);
                     tareas.Add(tarea);
                 }
                 await Task.WhenAll(tareas);
@@ -359,7 +359,7 @@ public class Main
         }
     }
 
-    public async Task ProcesamientoComparador(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser, string fechaAComparar)
+    public async Task ProcesamientoComparador(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser, string fechaAComparar, List<string> noBuscar)
     {
         DateTime currentDateTime = DateTime.Now;
         DateTime currentDate = currentDateTime.Date;
@@ -390,6 +390,7 @@ public class Main
             busqueda += "_Desde_";
             List<Auto> results = new List<Auto>();
             results = await Query(busqueda);
+            results = FiltrarNoBuscados(results, noBuscar);
             //results = BorrarCajaAutomatica(results);
             Console.WriteLine("Volcando resultados de " + busquedaUser + " " + hoja);
 
@@ -410,6 +411,15 @@ public class Main
             ModificarReporte(rutaDelDirectorio, cambiaronPrecio, hoja.ToString());
             hoja++;
         }
+    }
+
+    public List<Auto> FiltrarNoBuscados(List<Auto> autos, List<string> noBuscar)
+    {
+        List<Auto> autosEliminados = autos
+            .Where(auto => noBuscar.Any(palabra => auto.Descripcion.Contains(palabra, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+        autos.RemoveAll(auto => noBuscar.Any(palabra => auto.Descripcion.Contains(palabra, StringComparison.OrdinalIgnoreCase)));
+        return autos;
     }
 
     public void ModificarReporte(string ruta, List<Auto> cambiaronPrecio, string hoja)
@@ -521,7 +531,7 @@ public class Main
         return tabla;
     }
 
-    public async Task Procesamiento(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser)
+    public async Task Procesamiento(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser, List<string> noBuscar)
     {
         DateTime currentDateTime = DateTime.Now;
         DateTime currentDate = currentDateTime.Date;
@@ -537,6 +547,7 @@ public class Main
             busqueda += "_Desde_";
             
             List<Auto> results = await Query(busqueda);
+            results = FiltrarNoBuscados(results, noBuscar);
             //bool existe = verificarIdExiste(results, "MLA1478269101");
             //results = BorrarCajaAutomatica(results);
             //existe = verificarIdExiste(results, "MLA1478269101");
@@ -1071,7 +1082,9 @@ public class Main
 
         [JsonPropertyName("anio_fin")]
         public int AnioFin { get; set; }
-        
+        [JsonPropertyName("no_buscar")]
+        public List<string> NoBuscar { get; set; }
+
     }
     public class CMP
     {
