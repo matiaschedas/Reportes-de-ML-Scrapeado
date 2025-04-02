@@ -1,50 +1,8 @@
-﻿// See https://aka.ms/new-console-template for more information
-
-//Client Secret: GWR6eZHrAZu47zusWIX8MinrMnSOjhYh
-//App ID: 2398820623563499
-//Redirect URI: https://verdemercado.com.ar/
-//code: TG-67eb57804f34a800019fcf84-63251640
-//codigo postman: 
+﻿
 /*
- * 
-curl -X POST \
--H 'accept: application/json' \
--H 'content-type: application/x-www-form-urlencoded' \
-'https://api.mercadolibre.com/oauth/token' \
--d 'grant_type=authorization_code' \
--d 'client_id=2398820623563499' \
--d 'client_secret=GWR6eZHrAZu47zusWIX8MinrMnSOjhYh' \
--d 'code=TG-6794214500e5ab0001ebfa0d-63251640' \
--d 'redirect_uri=https://www.matchkraft.com/' \
--d 'code_verifier=$CODE_VERIFIER'
-
-Respuesta:
-
-{
-    "access_token": "APP_USR-2398820623563499-040114-4a19c8df2b5e38a9a59de91f6af4f7e1-63251640",
-    "token_type": "Bearer",
-    "expires_in": 21600,
-    "scope": "offline_access read",
-    "user_id": 63251640,
-    "refresh_token": "TG-67ec305e655b430001313ae7-63251640"
-}
-
-uso de api:
-curl -X GET -H 'Authorization: Bearer APP_USR-2398820623563499-012614-5826e66cbd8134ea750553cb6c8571bb-63251640' https://api.mercadolibre.com/sites/MLA/search?q=Motorola%20G6
-
-Refresh token:
-
-curl -X POST \
--H 'accept: application/json' \
--H 'content-type: application/x-www-form-urlencoded' \
-'https://api.mercadolibre.com/oauth/token' \
--d 'grant_type=refresh_token' \
--d 'client_id=2398820623563499' \
--d 'client_secret=GWR6eZHrAZu47zusWIX8MinrMnSOjhYh' \
--d 'refresh_token=TG-6794216100e5ab0001ebfb44-63251640'
-
+ hola
  */
-
+using HtmlAgilityPack;
 using System;
 using System.Net.Http;
 using System.Reflection.Metadata.Ecma335;
@@ -66,6 +24,7 @@ using OfficeOpenXml.Table;
 using OfficeOpenXml.Drawing.Chart;
 using System.IO;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.Reflection.Metadata;
 
 
 public class Globals
@@ -92,8 +51,8 @@ public class Program
             var pathReportes = AppContext.BaseDirectory + "Reportes";
             mainInstance.CrearCarpeta(pathHistoricos);
             mainInstance.CrearCarpeta(pathReportes);
-            string token = mainInstance.LeeerTokenDesdeArchivo(rutaDelDirectorio);
-            globales.Token = token;
+            
+
             bool ingresoCorrecto = false;
             string busquedaUser = "";
             string nombreReporte = "";
@@ -108,7 +67,7 @@ public class Program
             string reporteComparador = "";
             bool EsReporteComparador = false;
             string fechaAComparar = "";
-            HttpClient client = new HttpClient();
+            
             string rutaComparador = AppContext.BaseDirectory;
             rutaComparador += "Comparador.txt";
             CMP comparador = mainInstance.obtenerCMP(rutaComparador);
@@ -213,7 +172,7 @@ public class Program
                             }
                         }
                     }
-                    await mainInstance.Procesamiento(rutaDelDirectorio, nombreReporte, anioInicio, anioFin, busquedaUser, client);
+                    await mainInstance.Procesamiento(rutaDelDirectorio, nombreReporte, anioInicio, anioFin, busquedaUser);
                 }
                 else
                 {
@@ -222,7 +181,7 @@ public class Program
                     foreach (var archivo in rutas)
                     {
                         Busqueda busquedaPorTxt = mainInstance.obtenerBusqueda(archivo);
-                        Task tarea = mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query, client);
+                        Task tarea = mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query);
                         tareas.Add(tarea);
                     }
                     await Task.WhenAll(tareas);
@@ -248,7 +207,7 @@ public class Program
                 foreach (var archivo in rutas)
                 {
                     Busqueda busquedaPorTxt = mainInstance.obtenerBusqueda(archivo);
-                    Task tarea =  mainInstance.ProcesamientoComparador(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query, fechaAComparar, client);
+                    Task tarea =  mainInstance.ProcesamientoComparador(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query, fechaAComparar);
                     //Task tarea2 = mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query);
                     tareas.Add(tarea);
                     //tareas.Add(tarea2);
@@ -260,7 +219,7 @@ public class Program
                 foreach (var archivo in rutas)
                 {
                     Busqueda busquedaPorTxt = mainInstance.obtenerBusqueda(archivo);
-                    Task tarea = mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query, client);
+                    Task tarea = mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query);
                     tareas.Add(tarea);
                 }
                 await Task.WhenAll(tareas);
@@ -400,7 +359,7 @@ public class Main
         }
     }
 
-    public async Task ProcesamientoComparador(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser, string fechaAComparar, HttpClient client)
+    public async Task ProcesamientoComparador(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser, string fechaAComparar)
     {
         DateTime currentDateTime = DateTime.Now;
         DateTime currentDate = currentDateTime.Date;
@@ -430,13 +389,13 @@ public class Main
             Console.WriteLine("Realizando consulta...");
             string busqueda = busquedaUser + " " + hoja.ToString();
             busqueda = busqueda.Replace(" ", "%20");
-            
-            List<Result> results = await Query(busqueda, client);
-            results = BorrarCajaAutomatica(results);
+            List<Auto> results = new List<Auto>();
+            results = await Query(busqueda) ?? new List<Auto>();
+            //results = BorrarCajaAutomatica(results);
             Console.WriteLine("Volcando resultados de " + busquedaUser + " " + hoja);
-            
 
-            List<List<string>> tablaHoja = LeerHojaReporteAnterior(rutaDelDirectorioAnterior, i);
+            List<List<string>> tablaHoja = new List<List<string>>();
+            tablaHoja = LeerHojaReporteAnterior(rutaDelDirectorioAnterior, i) ?? new List<List<string>>();
             bool creado = CrearAbrirExcelReportes(rutaDelDirectorio, hoja.ToString(), busquedaUser.Replace("%20", " "));
             if (!creado)
             {
@@ -446,7 +405,7 @@ public class Main
             decimal oficialUSD = await ObtenerPrecioVentaDolarOficial();
             decimal blueUSD = await ObtenerPrecioVentaDolarBlue();
             results = FiltrarResultadosRepetidos(results, tablaHoja);
-            List<Result> cambiaronPrecio = ObtenerCambiaronPrecio(results, tablaHoja);
+            List<Auto> cambiaronPrecio = ObtenerCambiaronPrecio(results, tablaHoja);
             CompletarReporte(rutaDelDirectorio, results, hoja.ToString(), oficialUSD, blueUSD, hoja);
             ModificarReporte(rutaDelDirectorioAnterior,cambiaronPrecio, hoja.ToString());
             ModificarReporte(rutaDelDirectorio, cambiaronPrecio, hoja.ToString());
@@ -454,7 +413,7 @@ public class Main
         }
     }
 
-    public void ModificarReporte(string ruta, List<Result> cambiaronPrecio, string hoja)
+    public void ModificarReporte(string ruta, List<Auto> cambiaronPrecio, string hoja)
     {
         if (cambiaronPrecio.Count == 0)
         {
@@ -479,7 +438,7 @@ public class Main
                 for (int row = 1; row <= rowCount; row++)
                 {
                     var cell = ws.Cells[row, 1];
-                    if (cell.Text.Replace("-", "") == fila.Id.Replace("-", ""))
+                    if (cell.Text.Replace("-", "") == fila.ID.Replace("-", ""))
                     {
                         cell.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
                         cell.Style.Fill.BackgroundColor.SetColor(System.Drawing.ColorTranslator.FromHtml("#FFFF00"));
@@ -491,7 +450,7 @@ public class Main
         }
     }
 
-    public List<Result> FiltrarResultadosRepetidos(List<Result> results, List<List<string>> tabla)
+    public List<Auto> FiltrarResultadosRepetidos(List<Auto> results, List<List<string>> tabla)
     {
         var idsYPrecios = new HashSet<(string, decimal)>();
         foreach(var fila in tabla)
@@ -499,10 +458,10 @@ public class Main
             decimal precio = decimal.Parse(fila[3].ToString());
             idsYPrecios.Add((fila[0].Replace("-",""), precio));
         }
-        results.RemoveAll(r => idsYPrecios.Contains((r.Id, r.Price)));
+        results.RemoveAll(r => idsYPrecios.Contains((r.ID, r.Precio ?? decimal.Zero)));
         return results;
     }
-    public List<Result> ObtenerCambiaronPrecio(List<Result> results, List<List<string>> tabla)
+    public List<Auto> ObtenerCambiaronPrecio(List<Auto> results, List<List<string>> tabla)
     {
         var idsYPrecios = new HashSet<(string, decimal)>();
         var ids = new HashSet<string>();
@@ -512,7 +471,7 @@ public class Main
             idsYPrecios.Add((fila[0].Replace("-", ""), precio));
             ids.Add(fila[0].Replace("-", ""));
         }
-        return results.Where(r => ids.Contains(r.Id) && !idsYPrecios.Contains((r.Id, r.Price))).ToList();
+        return results.Where(r => ids.Contains(r.ID) && !idsYPrecios.Contains((r.ID, r.Precio ?? decimal.Zero))).ToList();
     }
 
     public string ObtenerNombrePrimerHoja(string ruta)
@@ -561,7 +520,7 @@ public class Main
         return tabla;
     }
 
-    public async Task Procesamiento(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser, HttpClient client)
+    public async Task Procesamiento(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser)
     {
         DateTime currentDateTime = DateTime.Now;
         DateTime currentDate = currentDateTime.Date;
@@ -573,12 +532,13 @@ public class Main
         {
             Console.WriteLine("Realizando consulta...");
             string busqueda = busquedaUser + " " + anioInicio.ToString();
-            busqueda = busqueda.Replace(" ", "%20");
+            busqueda = busqueda.Replace(" ", "-");
+            busqueda += "_Desde_";
             
-            List<Result> results = await Query(busqueda, client);
-            bool existe = verificarIdExiste(results, "MLA1478269101");
-            results = BorrarCajaAutomatica(results);
-            existe = verificarIdExiste(results, "MLA1478269101");
+            List<Auto> results = await Query(busqueda);
+            //bool existe = verificarIdExiste(results, "MLA1478269101");
+            //results = BorrarCajaAutomatica(results);
+            //existe = verificarIdExiste(results, "MLA1478269101");
             //imprimirResultados(results);
             Console.WriteLine("Volcando resultados de " + busquedaUser + " " + anioInicio);
 
@@ -602,118 +562,86 @@ public class Main
 
     }
 
-    public async Task<List<Result>> Query(string busquedaUser, HttpClient client)
+    public async Task<List<Auto>> Query(string busquedaUser)
     {
-        string query = "search?q=<BUSQUEDA>&status=active&limit=50";
         int offset = 0;
-        string offsetQuery = "&offset=" + offset.ToString();
-        query = query.Replace("<BUSQUEDA>", busquedaUser);
-        string queryFinal = query + offsetQuery;
-        string url = "https://api.mercadolibre.com/sites/MLA/" + queryFinal;
-        string token = _globals.Token;
+        string urlScrapear = "https://autos.mercadolibre.com.ar/" + busquedaUser;
+        urlScrapear += offset.ToString();
+        List<Auto> results = new List<Auto>();
+        HtmlWeb web = new HtmlWeb();
+        int LimitLoop = 50;
+        int iteration = 0;
 
-        using (client = new HttpClient())
+        while (iteration < LimitLoop)
         {
-            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
-            List<Result> results = new List<Result>();
-            bool finBucle = false;
-            while (!finBucle)
+            HtmlDocument doc = web.Load(urlScrapear);
+            var cartelSinPublicaciones = doc.DocumentNode.SelectNodes("//div[contains(@class, 'ui-search-rescue')]");
+            if (cartelSinPublicaciones != null)
             {
-                finBucle = esFinBucle(offset);
-                try
-                {
-                    HttpResponseMessage response = new HttpResponseMessage();
-                    string errorDetails = "";
-                    if (esPrimerIteracion)
-                    {
-                        await semaphore.WaitAsync();
-                        try
-                        {
-                            if (!ReemplazoTokenTerminado)
-                            {
-                                response = await client.GetAsync(url);
-                                errorDetails = await response.Content.ReadAsStringAsync();
-                                if (!response.IsSuccessStatusCode)
-                                {
-                                    var jsonObject = JsonSerializer.Deserialize<JsonElement>(errorDetails);
-                                    string message = jsonObject.GetProperty("message").GetString() ?? System.String.Empty;
-
-                                   
-                                    string newAccessToken = await Refresh();
-                                    token = newAccessToken;
-                                    _globals.Token = newAccessToken;
-                                    string rutaDelDirectorio = AppContext.BaseDirectory;
-                                    rutaDelDirectorio += "token.txt";
-                                    ReemplazarContenidoArchivo(rutaDelDirectorio, newAccessToken);
-                                    
-                                    if (client.DefaultRequestHeaders.Contains("Authorization"))
-                                    {
-                                        client.DefaultRequestHeaders.Remove("Authorization");
-                                    }
-                                    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {_globals.Token}");
-                                    response = await client.GetAsync(url);
-                                }
-                                await Task.Delay(3000);
-                                ReemplazoTokenTerminado = true;
-                                //semaphore.Release();
-                            }
-                            else
-                            {
-                                if (client.DefaultRequestHeaders.Contains("Authorization"))
-                                {
-                                    client.DefaultRequestHeaders.Remove("Authorization");
-                                }
-                                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {_globals.Token}");
-                                response = await client.GetAsync(url);
-                            }
-                            esPrimerIteracion = false;
-                        }
-                        finally
-                        {
-                            semaphore.Release();
-                        }
-                    }
-                    else
-                    {
-                        response = await client.GetAsync(url);
-                        errorDetails = await response.Content.ReadAsStringAsync();
-                    }
-                    
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        string json = await response.Content.ReadAsStringAsync();
-                        // Deserializa solo la propiedad "results"
-                        var options = new JsonSerializerOptions
-                        {
-                            PropertyNameCaseInsensitive = true // Ignora diferencias entre mayúsculas y minúsculas
-                        };
-                        using var jsonDocument = JsonDocument.Parse(json);
-                        var resultsJson = jsonDocument.RootElement.GetProperty("results").GetRawText();
-                        List<Result> partialResults = JsonSerializer.Deserialize<List<Result>>(resultsJson, options) ?? new List<Result>();
-                        results.AddRange(partialResults);
-                        offset += 50;
-
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Error en la consulta: {response.StatusCode}");
-                        Console.WriteLine($"Detalles del error: {errorDetails}");
-                        finBucle = true;
-                    }
-                    offsetQuery = "&offset=" + offset.ToString();
-                    queryFinal = query + offsetQuery;
-                    url = "https://api.mercadolibre.com/sites/MLA/" + queryFinal;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Ocurrió un error: {ex.Message}");
-                    finBucle = true;
-                    semaphore.Release();
-                }
+                return results;
             }
-            return results;  
+            var items = doc.DocumentNode.SelectNodes("//li[contains(@class, 'ui-search-layout__item')]");
+            if (items == null) return results;
+            List<Auto> autos = new List<Auto>();
+
+            foreach (var item in items)
+            {
+                var auto = new Auto();
+                var descripcionNode = item.SelectSingleNode(".//a");
+                if (descripcionNode != null)
+                {
+                    auto.Descripcion = descripcionNode.InnerText.Trim();
+                    string href = descripcionNode.GetAttributeValue("href", string.Empty).Trim();
+                    //auto.ID
+                    Regex rg = new Regex(@"(MLA-\d+)");
+                    Match match = rg.Match(href);
+                    if (match.Success)
+                    {
+                        auto.ID = match.Value;
+                    }
+                    else
+                    {
+                        auto.ID = "Error";
+                    }
+
+                }
+                var kilometrosNode = item.SelectSingleNode("(.//li[contains(@class, 'poly-attributes-list__item') and contains(@class, 'poly-attributes-list__separator')])[2]");
+                if (kilometrosNode != null)
+                {
+                    auto.Kilometros = kilometrosNode.InnerText.Trim();
+                }
+                var precioNode = item.SelectSingleNode(".//span[contains(@class, 'andes-money-amount__fraction')]");
+                if (precioNode != null)
+                {
+                    decimal precioDecimal;
+                    if (decimal.TryParse(precioNode.InnerText.Trim(), out precioDecimal))
+                    {
+                        auto.Precio = precioDecimal;
+                    }
+                    else
+                    {
+                        // La conversión falló, manejar el error o asignar un valor predeterminado
+                        auto.Precio = 0;
+                    }
+                }
+                var monedaNode = item.SelectSingleNode(".//span[contains(@class, 'andes-money-amount__currency-symbol')]");
+                if (monedaNode != null)
+                {
+                    auto.Moneda = monedaNode.InnerText.Trim();
+                }
+                autos.Add(auto);
+            }
+            results.AddRange(autos);
+            if (offset == 0)
+            {
+                offset += 1;
+            }
+            offset += 48;
+            urlScrapear = "https://autos.mercadolibre.com.ar/" + busquedaUser;
+            urlScrapear += offset.ToString();
+            iteration++;
         }
+        return results;
     }
 
     public bool verificarIdExiste(List<Result> results, string ID)
@@ -737,77 +665,7 @@ public class Main
         }
         Console.WriteLine($"Cantidad de productos: {results.LongCount()}");
     }
-    public bool esFinBucle (int offset)
-    {
-        int limit = 50;
-        if((limit + offset)>3999)
-        {
-            return true;
-        }
-        return false;
-    }
-    public async Task<string> Refresh()
-    {
-        string url = "https://api.mercadolibre.com/oauth/token";
-        var formContent = new FormUrlEncodedContent(new[]
-        {
-         new KeyValuePair<string, string>("grant_type", "refresh_token"),
-         new KeyValuePair<string, string>("client_id", "2398820623563499"),
-         new KeyValuePair<string, string>("client_secret", "GWR6eZHrAZu47zusWIX8MinrMnSOjhYh"),
-         new KeyValuePair<string, string>("refresh_token", _globals.RefreshToken)
-        });
-
-        using (HttpClient client = new HttpClient())
-        {
-            client.DefaultRequestHeaders.Add("accept", "application/json");
-            try
-            {
-                HttpResponseMessage response = await client.PostAsync(url, formContent);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    string responseBody = await response.Content.ReadAsStringAsync();
-                    var jsonResponse = JsonDocument.Parse(responseBody);
-                    string accessToken = jsonResponse.RootElement.GetProperty("access_token").GetString() ?? string.Empty;
-                    return accessToken;
-                }
-                else
-                {
-                    Console.WriteLine("Error de api refresh");
-                    return string.Empty;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Ocurrió un error: {ex.Message}");
-                return string.Empty;
-
-            }
-        }
-    }
-
-    public string LeeerTokenDesdeArchivo(string ruta)
-    {
-        try
-        {
-            if (File.Exists(ruta))
-            {
-                string token = File.ReadAllText(ruta).Trim(); // Lee todo el contenido y elimina espacios en blanco
-                return token; // Devuelve el token
-            }
-            else
-            {
-                Console.WriteLine($"El archivo no existe en la ruta especificada: {ruta}");
-                return string.Empty; // Devuelve un string vacío si el archivo no existe
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Ocurrió un error al leer el archivo: {ex.Message}");
-            return string.Empty; // Devuelve un string vacío en caso de error
-        }
-
-    }
+    
 
     public static void ReemplazarContenidoArchivo(string rutaArchivo, string nuevoContenido)
     {
@@ -898,11 +756,11 @@ public class Main
             package.Save();
         }
     }
-    public (string anio, decimal promedio) CompletarReporte(string ruta, List<Result> results, string hoja, decimal dolarOficial, decimal dolarBlue, int anioInicio)
+    public (string anio, decimal promedio) CompletarReporte(string ruta, List<Auto> results, string hoja, decimal dolarOficial, decimal dolarBlue, int anioInicio)
     {
         try
         {
-            var itemsOrdenados = results.OrderBy(item => item.Price).ToList();
+            var itemsOrdenados = results.OrderBy(item => item.Precio).ToList();
 
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
             using (var package = new ExcelPackage(new FileInfo(ruta)))
@@ -918,14 +776,13 @@ public class Main
                 decimal totalUSDOficial = 0;
                 foreach (var result in itemsOrdenados)
                 {
-                    string anio = GetAttributeValue(result, "Año");
-                    string kms = GetAttributeValue(result, "Kilómetros");
-                    string transmision = GetAttributeValue(result, "Transmisión");
-                    decimal precio = result.Price;
-                    string id = result.Id;
+                    string anio = hoja;
+                    string kms = result.Kilometros;
+                    decimal precio = result.Precio ?? decimal.Zero;
+                    string id = result.ID;
                     id = id.Substring(0, 3) + "-" + id.Substring(3, id.Length-3);
-                    string moneda = result.Currency_id;
-                    if (moneda == "USD")
+                    string moneda = result.Moneda;
+                    if (moneda == "US$")
                     {
                         cantUSD++;
                         totalUSD += precio;
@@ -937,7 +794,7 @@ public class Main
                         totalUSDBlue += precio / dolarBlue;
                         totalUSDOficial += precio / dolarOficial;
                     }
-                    string descripcion = result.Title;
+                    string descripcion = result.Descripcion;
                     worksheet.Cells[fila, 1].Value = id;
                     worksheet.Cells[fila, 2].Value = descripcion;
                     worksheet.Cells[fila, 3].Value = kms;
@@ -1224,6 +1081,14 @@ public class Main
         public string FechaAComparar { get; set; }
         [JsonPropertyName("eliminar_anterior")]
         public bool EliminarAnterior {  get; set; }
+    }
+    public class Auto
+    {
+        public string? Descripcion { get; set; }
+        public string? ID { get; set; }
+        public string? Kilometros { get; set; }
+        public decimal? Precio { get; set; }
+        public string? Moneda { get; set; }
     }
 }
 
