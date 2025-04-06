@@ -361,56 +361,57 @@ public class Main
 
     public async Task ProcesamientoComparador(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser, string fechaAComparar, List<string> noBuscar)
     {
-        DateTime currentDateTime = DateTime.Now;
-        DateTime currentDate = currentDateTime.Date;
-        string fechaActual = currentDate.ToString("dd-MM-yyyy");
-        DateTime fechaAnterior = DateTime.Parse(fechaAComparar);
-        string fechaAnteriorText = fechaAnterior.ToString("dd-MM-yyyy");
-        string rutaDelDirectorioAnterior = rutaDelDirectorio +  "Reportes\\" + fechaAnteriorText + " " + nombreReporte + ".xlsx";
-        rutaDelDirectorio += "Reportes\\" + fechaActual + " " + nombreReporte + " COMPARADOR vs " + fechaAnteriorText + ".xlsx";
-        
-        if (!(File.Exists(rutaDelDirectorioAnterior)))
-        {
-            Console.WriteLine("No es posible hacer un reporte comparador porque no existe el reporte de la fecha: "+ fechaAnteriorText);
-            return;
-        }
-        int cantidadHojas = ObtenerCantidadHojas(rutaDelDirectorioAnterior);
-        if (cantidadHojas == 0)
-        {
-            Console.WriteLine("No hay hojas en el reporte de ayer");
-            return;
-        }
-        string primerHoja = ObtenerNombrePrimerHoja(rutaDelDirectorioAnterior);
-        int hoja = int.Parse(primerHoja);
-        for(int i = 0; i<cantidadHojas; i++)
-        {
-            Console.WriteLine("Realizando consulta...");
-            string busqueda = busquedaUser + " " + hoja.ToString();
-            busqueda = busqueda.Replace(" ", "-");
-            busqueda += "_Desde_";
-            List<Auto> results = new List<Auto>();
-            results = await Query(busqueda);
-            results = FiltrarNoBuscados(results, noBuscar);
-            //results = BorrarCajaAutomatica(results);
-            Console.WriteLine("Volcando resultados de " + busquedaUser + " " + hoja);
+            DateTime currentDateTime = DateTime.Now;
+            DateTime currentDate = currentDateTime.Date;
+            string fechaActual = currentDate.ToString("dd-MM-yyyy");
+            DateTime fechaAnterior = DateTime.Parse(fechaAComparar);
+            string fechaAnteriorText = fechaAnterior.ToString("dd-MM-yyyy");
+            string rutaDelDirectorioAnterior = rutaDelDirectorio + "Reportes\\" + fechaAnteriorText + " " + nombreReporte + ".xlsx";
+            rutaDelDirectorio += "Reportes\\" + fechaActual + " " + nombreReporte + " COMPARADOR vs " + fechaAnteriorText + ".xlsx";
 
-            List<List<string>> tablaHoja = new List<List<string>>();
-            tablaHoja = LeerHojaReporteAnterior(rutaDelDirectorioAnterior, i);
-            bool creado = CrearAbrirExcelReportes(rutaDelDirectorio, hoja.ToString(), busquedaUser.Replace("%20", " "));
-            if (!creado)
+            if (!(File.Exists(rutaDelDirectorioAnterior)))
             {
-                Console.WriteLine("Error al crear reporte");
+                Console.WriteLine("No es posible hacer un reporte comparador porque no existe el reporte de la fecha: " + fechaAnteriorText);
                 return;
             }
-            decimal oficialUSD = await ObtenerPrecioVentaDolarOficial();
-            decimal blueUSD = await ObtenerPrecioVentaDolarBlue();
-            results = FiltrarResultadosRepetidos(results, tablaHoja);
-            List<Auto> cambiaronPrecio = ObtenerCambiaronPrecio(results, tablaHoja);
-            CompletarReporte(rutaDelDirectorio, results, hoja.ToString(), oficialUSD, blueUSD, hoja);
-            ModificarReporte(rutaDelDirectorioAnterior,cambiaronPrecio, hoja.ToString());
-            ModificarReporte(rutaDelDirectorio, cambiaronPrecio, hoja.ToString());
-            hoja++;
-        }
+            int cantidadHojas = ObtenerCantidadHojas(rutaDelDirectorioAnterior);
+            if (cantidadHojas == 0)
+            {
+                Console.WriteLine("No hay hojas en el reporte de ayer");
+                return;
+            }
+            string primerHoja = ObtenerNombrePrimerHoja(rutaDelDirectorioAnterior);
+            int hoja = int.Parse(primerHoja);
+            for (int i = 0; i < cantidadHojas; i++)
+            {
+                Console.WriteLine("Realizando consulta...");
+                string busqueda = busquedaUser + " " + hoja.ToString();
+                busqueda = busqueda.Replace(" ", "-");
+                busqueda += "_Desde_";
+                List<Auto> results = new List<Auto>();
+                results = await Query(busqueda);
+                results = FiltrarNoBuscados(results, noBuscar);
+                //results = BorrarCajaAutomatica(results);
+                Console.WriteLine("Volcando resultados de " + busquedaUser + " " + hoja);
+
+                List<List<string>> tablaHoja = new List<List<string>>();
+                tablaHoja = LeerHojaReporteAnterior(rutaDelDirectorioAnterior, i);
+                bool creado = CrearAbrirExcelReportes(rutaDelDirectorio, hoja.ToString(), busquedaUser.Replace("%20", " "));
+                if (!creado)
+                {
+                    Console.WriteLine("Error al crear reporte");
+                    return;
+                }
+                decimal oficialUSD = await ObtenerPrecioVentaDolarOficial();
+                decimal blueUSD = await ObtenerPrecioVentaDolarBlue();
+                results = FiltrarResultadosRepetidos(results, tablaHoja);
+                List<Auto> cambiaronPrecio = ObtenerCambiaronPrecio(results, tablaHoja);
+                CompletarReporte(rutaDelDirectorio, results, hoja.ToString(), oficialUSD, blueUSD, hoja);
+                ModificarReporte(rutaDelDirectorioAnterior, cambiaronPrecio, hoja.ToString());
+                ModificarReporte(rutaDelDirectorio, cambiaronPrecio, hoja.ToString());
+                hoja++;
+            }
+       
     }
 
     public List<Auto> FiltrarNoBuscados(List<Auto> autos, List<string> noBuscar)
@@ -463,7 +464,7 @@ public class Main
     {
         //esta funcion se queda con todos los autos que tengan o un ID nuevo (respecto al reporte anterior es decir tabla) o un precio nuevo
         var idsYPrecios = new HashSet<(string, decimal)>();
-        foreach(var fila in tabla)
+        foreach (var fila in tabla)
         {
             decimal precio = decimal.Parse(fila[3].ToString());
             idsYPrecios.Add((fila[0], precio));
@@ -528,6 +529,7 @@ public class Main
                 tabla.Add(datosFila);
             }
         }
+        tabla = tabla.Where(fila => fila.Any(celda => !string.IsNullOrWhiteSpace(celda))).ToList();
         return tabla;
     }
 
