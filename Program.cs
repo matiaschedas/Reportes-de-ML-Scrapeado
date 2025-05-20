@@ -619,7 +619,7 @@ public class Main
                     }
 
                 }
-                var kilometrosNode = item.SelectSingleNode("(.//li[contains(@class, 'poly-attributes-list__item') and contains(@class, 'poly-attributes-list__separator')])[2]");
+                var kilometrosNode = item.SelectSingleNode("(.//li[contains(@class, 'poly-attributes_list__item') and contains(@class, 'poly-attributes_list__separator')])[2]");
                 if (kilometrosNode != null)
                 {
                     auto.Kilometros = kilometrosNode.InnerText.Trim();
