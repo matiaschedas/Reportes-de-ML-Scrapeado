@@ -25,6 +25,7 @@ using OfficeOpenXml.Drawing.Chart;
 using System.IO;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using System.Reflection.Metadata;
+using OfficeOpenXml.ConditionalFormatting.Contracts;
 
 
 public class Globals
@@ -71,6 +72,8 @@ public class Program
             string rutaComparador = AppContext.BaseDirectory;
             rutaComparador += "Comparador.txt";
             CMP comparador = mainInstance.obtenerCMP(rutaComparador);
+
+
             if (comparador.EliminarAnterior == true)
             {
                 mainInstance.BorrarAnteriorEjecucionDeTodosLosHistoricos(pathHistoricos);
@@ -172,7 +175,7 @@ public class Program
                             }
                         }
                     }
-                    await mainInstance.Procesamiento(rutaDelDirectorio, nombreReporte, anioInicio, anioFin, busquedaUser, new List<string>());
+                    await mainInstance.Procesamiento(rutaDelDirectorio, nombreReporte, anioInicio, anioFin, busquedaUser, new List<string>(), comparador.Cookie);
                 }
                 else
                 {
@@ -181,7 +184,7 @@ public class Program
                     foreach (var archivo in rutas)
                     {
                         Busqueda busquedaPorTxt = mainInstance.obtenerBusqueda(archivo);
-                        Task tarea = mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query, busquedaPorTxt.NoBuscar);
+                        Task tarea = mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query, busquedaPorTxt.NoBuscar, comparador.Cookie);
                         tareas.Add(tarea);
                     }
                     await Task.WhenAll(tareas);
@@ -207,7 +210,7 @@ public class Program
                 foreach (var archivo in rutas)
                 {
                     Busqueda busquedaPorTxt = mainInstance.obtenerBusqueda(archivo);
-                    Task tarea =  mainInstance.ProcesamientoComparador(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query, fechaAComparar, busquedaPorTxt.NoBuscar);
+                    Task tarea =  mainInstance.ProcesamientoComparador(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query, fechaAComparar, busquedaPorTxt.NoBuscar, comparador.Cookie);
                     //Task tarea2 = mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query);
                     tareas.Add(tarea);
                     //tareas.Add(tarea2);
@@ -219,7 +222,7 @@ public class Program
                 foreach (var archivo in rutas)
                 {
                     Busqueda busquedaPorTxt = mainInstance.obtenerBusqueda(archivo);
-                    Task tarea = mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query, busquedaPorTxt.NoBuscar);
+                    Task tarea = mainInstance.Procesamiento(rutaDelDirectorio, busquedaPorTxt.NombreReporte, busquedaPorTxt.AnioInicio, busquedaPorTxt.AnioFin, busquedaPorTxt.query, busquedaPorTxt.NoBuscar, comparador.Cookie);
                     tareas.Add(tarea);
                 }
                 await Task.WhenAll(tareas);
@@ -359,7 +362,7 @@ public class Main
         }
     }
 
-    public async Task ProcesamientoComparador(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser, string fechaAComparar, List<string> noBuscar)
+    public async Task ProcesamientoComparador(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser, string fechaAComparar, List<string> noBuscar, string cookie)
     {
             DateTime currentDateTime = DateTime.Now;
             DateTime currentDate = currentDateTime.Date;
@@ -389,7 +392,7 @@ public class Main
                 busqueda = busqueda.Replace(" ", "-");
                 busqueda += "_Desde_";
                 List<Auto> results = new List<Auto>();
-                results = await Query(busqueda);
+                results = await Query(busqueda, cookie);
                 results = FiltrarNoBuscados(results, noBuscar);
                 //results = BorrarCajaAutomatica(results);
                 Console.WriteLine("Volcando resultados de " + busquedaUser + " " + hoja);
@@ -533,7 +536,7 @@ public class Main
         return tabla;
     }
 
-    public async Task Procesamiento(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser, List<string> noBuscar)
+    public async Task Procesamiento(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser, List<string> noBuscar, string cookie)
     {
         DateTime currentDateTime = DateTime.Now;
         DateTime currentDate = currentDateTime.Date;
@@ -548,7 +551,7 @@ public class Main
             busqueda = busqueda.Replace(" ", "-");
             busqueda += "_Desde_";
             
-            List<Auto> results = await Query(busqueda);
+            List<Auto> results = await Query(busqueda, cookie);
             results = FiltrarNoBuscados(results, noBuscar);
             //bool existe = verificarIdExiste(results, "MLA1478269101");
             //results = BorrarCajaAutomatica(results);
@@ -576,7 +579,7 @@ public class Main
 
     }
 
-    public async Task<List<Auto>> Query(string busquedaUser)
+    public async Task<List<Auto>> Query(string busquedaUser, string cookie)
     {
         int offset = 0;
         string urlScrapear = "https://autos.mercadolibre.com.ar/" + busquedaUser;
@@ -586,9 +589,29 @@ public class Main
         int LimitLoop = 50;
         int iteration = 0;
 
+        
+       
+        
+
         while (iteration < LimitLoop)
         {
-            HtmlDocument doc = web.Load(urlScrapear);
+            //HtmlDocument doc = web.Load(urlScrapear);
+            var handler = new HttpClientHandler();
+            var client = new HttpClient(handler);
+            var request = new HttpRequestMessage(HttpMethod.Get, urlScrapear);
+            request.Headers.Add("Cookie", cookie);
+            request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/114.0");
+            var response = await client.SendAsync(request);
+            string html = await response.Content.ReadAsStringAsync();
+            var doc = new HtmlAgilityPack.HtmlDocument();
+            doc.LoadHtml(html);
+
+            var cartelLogin = doc.DocumentNode.SelectSingleNode("//p[contains(@class, 'message-card')]");
+            if( cartelLogin != null)
+            {
+                throw new Exception("Logear ML, cambiar la cookie");
+            }
+
             var cartelSinPublicaciones = doc.DocumentNode.SelectNodes("//div[contains(@class, 'ui-search-rescue')]");
             if (cartelSinPublicaciones != null)
             {
@@ -1095,7 +1118,9 @@ public class Main
         [JsonPropertyName("fecha_a_comparar")]
         public string FechaAComparar { get; set; }
         [JsonPropertyName("eliminar_anterior")]
-        public bool EliminarAnterior {  get; set; }
+        public bool EliminarAnterior { get; set; }
+        [JsonPropertyName("cookie")]
+        public string Cookie { get; set; }
     }
     public class Auto
     {
