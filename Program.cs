@@ -419,11 +419,11 @@ public class Main
 
     public List<Auto> FiltrarNoBuscados(List<Auto> autos, List<string> noBuscar)
     {
-        List<Auto> autosEliminados = autos
-            .Where(auto => noBuscar.Any(palabra => auto.Descripcion.Contains(palabra, StringComparison.OrdinalIgnoreCase)))
-            .ToList();
-        autos.RemoveAll(auto => noBuscar.Any(palabra => auto.Descripcion.Contains(palabra, StringComparison.OrdinalIgnoreCase)));
-        return autos;
+            List<Auto> autosEliminados = autos
+                .Where(auto => noBuscar.Any(palabra => auto.Descripcion.Contains(palabra, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+            autos.RemoveAll(auto => noBuscar.Any(palabra => auto.Descripcion.Contains(palabra, StringComparison.OrdinalIgnoreCase)));
+            return autos;
     }
 
     public void ModificarReporte(string ruta, List<Auto> cambiaronPrecio, string hoja)
@@ -596,8 +596,8 @@ public class Main
         while (iteration < LimitLoop)
         {
             //HtmlDocument doc = web.Load(urlScrapear);
-            var handler = new HttpClientHandler();
-            var client = new HttpClient(handler);
+            using var handler = new HttpClientHandler();
+            using var client = new HttpClient(handler);
             var request = new HttpRequestMessage(HttpMethod.Get, urlScrapear);
             request.Headers.Add("Cookie", cookie);
             request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/114.0");
@@ -638,7 +638,25 @@ public class Main
                     }
                     else
                     {
-                        auto.ID = "Error";
+                        var url = href;
+                        using var handler2 = new HttpClientHandler
+                        {
+                            AllowAutoRedirect = true
+                        };
+                        using var client2 = new HttpClient(handler2);
+                        var response2 = await client2.GetAsync(url);
+                        string finalURL = response2.RequestMessage.RequestUri.ToString();
+                        
+                        Regex rg2 = new Regex(@"(MLA-\d+)");
+                        Match match2 = rg2.Match(finalURL);
+                            if (match2.Success)
+                            {
+                                auto.ID = match2.Value;
+                            }
+                            else
+                            {
+                                auto.ID = "Error";
+                            }
                     }
 
                 }
