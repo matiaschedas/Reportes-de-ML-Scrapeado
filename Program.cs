@@ -26,7 +26,11 @@ using System.IO;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using System.Reflection.Metadata;
 using OfficeOpenXml.ConditionalFormatting.Contracts;
-
+using Telegram.Bot;
+using Telegram.Bot.Args;
+using Telegram.Bot.Polling;
+using Telegram.Bot.Types.Enums;
+using System.Text;
 
 public class Globals
 {
@@ -72,7 +76,7 @@ public class Program
             string rutaComparador = AppContext.BaseDirectory;
             rutaComparador += "Comparador.txt";
             CMP comparador = mainInstance.obtenerCMP(rutaComparador);
-
+            
 
             if (comparador.EliminarAnterior == true)
             {
@@ -227,6 +231,9 @@ public class Program
                 }
                 await Task.WhenAll(tareas);
             }
+
+            List<Auto> autos = mainInstance.ObtenerAutosReportesHoy();
+            mainInstance.EnviarMensajeTelegram(autos, comparador.NotificarPesos, comparador.NotificarUsd, comparador.IdTelegram);
 
             Console.WriteLine("Proceso Completado con Exito, Presiona Enter para salir...");
             Console.ReadLine();
@@ -534,6 +541,111 @@ public class Main
         }
         tabla = tabla.Where(fila => fila.Any(celda => !string.IsNullOrWhiteSpace(celda))).ToList();
         return tabla;
+    }
+
+    public List<Auto> ObtenerAutosReportesHoy()
+    {
+        List<Auto> autos = new List<Auto>();
+        string rutaDelDirectorio = AppContext.BaseDirectory;
+        rutaDelDirectorio += "Reportes\\";
+        DateTime currentDateTime = DateTime.Now;
+        DateTime currentDate = currentDateTime.Date;
+        string fechaActual = currentDate.ToString("dd-MM-yyyy");
+        string patron = fechaActual + "*.xlsx";
+        string [] archivos = Directory.GetFiles(rutaDelDirectorio, patron);
+        var archivosFiltrados = archivos
+           .Where(archivo =>
+               !Path.GetFileName(archivo)
+                    .Contains("COMPARADOR", StringComparison.OrdinalIgnoreCase))
+           .ToList();
+        foreach (var archivo in archivosFiltrados)
+        {
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            using (var paquete = new ExcelPackage(new FileInfo(archivo)))
+            {
+                var workbook = paquete.Workbook;
+                foreach (var worksheet in workbook.Worksheets)
+                {
+                    int filasTotales = worksheet.Dimension.End.Row;
+                    if (filasTotales != 3)
+                    {
+                        for (int fila = 3; fila <= filasTotales; fila++)
+                        {
+                            var auto = new Auto();
+                            auto.ID = worksheet.Cells[fila, 1].Text;
+                            auto.Descripcion = worksheet.Cells[fila, 2].Text;
+                            auto.Kilometros = worksheet.Cells[fila, 3].Text;
+                            auto.Precio = decimal.Parse(worksheet.Cells[fila, 4].Text);
+                            auto.Moneda = worksheet.Cells[fila, 5].Text;
+                            autos.Add(auto);
+                        }
+                    }
+                }
+            }
+        }
+        return autos;
+    }
+
+    public void EnviarMensajeTelegram(List<Auto> autos, int notificarPesos, int notificarUsd, int idTelegram)
+    {
+        List<Auto> autosFiltrados = autos.Where(auto => auto.Moneda == "$" && auto.Precio < notificarPesos || auto.Moneda == "US$" && auto.Precio < notificarUsd).OrderBy(auto => auto.Precio).ToList();
+        if (autosFiltrados.Count == 0)
+        {
+            Console.WriteLine("No hay autos para enviar por Telegram");
+            return;
+        }
+
+        ITelegramBotClient _botClient;
+        _botClient = new TelegramBotClient("6218585144:AAGHlD78x8FCPdsZbxmgEEWOJEnKwIIkaBw");
+
+        var me = _botClient.GetMeAsync().Result;
+        Console.WriteLine($"Hi, I am {me.Id} and my name is:  {me.FirstName}");
+
+        var receiverOptions = new ReceiverOptions
+        {
+            AllowedUpdates = new UpdateType[]
+            {
+                    UpdateType.Message,
+                    UpdateType.EditedMessage,
+            }
+        };
+        int destino = idTelegram;
+        string mensaje = "";
+        var sb = new StringBuilder();
+        
+        sb.AppendLine("ID             | KM       | Precio     ");
+        foreach (var auto in autosFiltrados)
+        {
+            string precioFormateado = auto.Precio.HasValue
+                                                            ? auto.Precio.Value.ToString("N0")
+                                                            : "N/A";
+            sb.AppendLine($"{auto.ID.PadRight(13)}| {auto.Kilometros.PadRight(9)}| {precioFormateado.PadLeft(10)}");
+        }
+        
+        string mensajeCompleto = sb.ToString();
+
+        // Cortar en bloques de hasta 4096 caracteres
+        List<string> partes = DividirEnPartes(mensajeCompleto, 4000); // dejamos margen por seguridad
+
+        foreach (string parte in partes)
+        {
+            _botClient.SendTextMessageAsync(destino, $"<pre>{System.Net.WebUtility.HtmlEncode(parte)}</pre>", Telegram.Bot.Types.Enums.ParseMode.Html).Wait();
+        }
+    }
+
+    public List<string> DividirEnPartes(string texto, int maxLongitud)
+    {
+        var partes = new List<string>();
+        int inicio = 0;
+
+        while (inicio < texto.Length)
+        {
+            int largo = Math.Min(maxLongitud, texto.Length - inicio);
+            partes.Add(texto.Substring(inicio, largo));
+            inicio += largo;
+        }
+
+        return partes;
     }
 
     public async Task Procesamiento(string rutaDelDirectorio, string nombreReporte, int anioInicio, int anioFin, string busquedaUser, List<string> noBuscar, string cookie)
@@ -1137,6 +1249,12 @@ public class Main
         public string FechaAComparar { get; set; }
         [JsonPropertyName("eliminar_anterior")]
         public bool EliminarAnterior { get; set; }
+        [JsonPropertyName("notificar_pesos")]
+        public int NotificarPesos { get; set; }
+        [JsonPropertyName("notificar_usd")]
+        public int NotificarUsd { get; set; }//por defecto no notifica pesos
+        [JsonPropertyName("id_telegram")]
+        public int IdTelegram { get; set; } //por defecto no notifica pesos
         [JsonPropertyName("cookie")]
         public string Cookie { get; set; }
     }
