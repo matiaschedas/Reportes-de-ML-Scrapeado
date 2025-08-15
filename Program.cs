@@ -729,7 +729,7 @@ public class Main
             {
                 return results;
             }
-            var items = doc.DocumentNode.SelectNodes("//li[contains(@class, 'ui-search-layout__item')]");
+            var items = doc.DocumentNode.SelectNodes("//li[contains(@class, 'ui-search-rescue__title')]");
             if (items == null) return results;
             List<Auto> autos = new List<Auto>();
 
