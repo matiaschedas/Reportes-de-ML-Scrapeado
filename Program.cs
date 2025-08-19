@@ -696,6 +696,7 @@ public class Main
         int offset = 0;
         string urlScrapear = "https://autos.mercadolibre.com.ar/" + busquedaUser;
         urlScrapear += offset.ToString();
+        urlScrapear += "_NoIndex_True";
         List<Auto> results = new List<Auto>();
         HtmlWeb web = new HtmlWeb();
         int LimitLoop = 50;
@@ -724,7 +725,7 @@ public class Main
                 throw new Exception("Logear ML, cambiar la cookie");
             }
 
-            var cartelSinPublicaciones = doc.DocumentNode.SelectNodes("//div[contains(@class, 'ui-search-rescue')]");
+            var cartelSinPublicaciones = doc.DocumentNode.SelectNodes("//h3[contains(@class, 'ui-search-rescue__title')]");
             if (cartelSinPublicaciones != null)
             {
                 return results;
@@ -806,6 +807,7 @@ public class Main
             offset += 48;
             urlScrapear = "https://autos.mercadolibre.com.ar/" + busquedaUser;
             urlScrapear += offset.ToString();
+            urlScrapear += "_NoIndex_True";
             iteration++;
         }
         return results;
