@@ -39,6 +39,8 @@ public class Globals
     public string RefreshToken { get; set; } = "TG-67eb579fb8f51f0001e4b390-63251640";
     public string Token { get; set; } = "APP_USR-2398820623563499-033123-3d0e381174c25b915eb04dbd62d46505-63251640";
 
+    public const string XPATHS = "https://gist.githubusercontent.com/matiaschedas/d7aaa6d7c4acc87c662d41f430a18114/raw/Xpaths.json";
+    public Dictionary<string, string> selectors;
 }
 
 public class Program
@@ -52,6 +54,7 @@ public class Program
             string rutaDelDirectorio = AppContext.BaseDirectory;
             rutaDelDirectorio += "token.txt";
             var mainInstance = new Main(globales);
+            await mainInstance.LoadSelectorsAsync();
             var pathHistoricos = AppContext.BaseDirectory + "Historicos";
             var pathReportes = AppContext.BaseDirectory + "Reportes";
             mainInstance.CrearCarpeta(pathHistoricos);
@@ -281,6 +284,42 @@ public class Main
             }
             // Guarda los cambios en el archivo Excel
             package.Save();
+        }
+    }
+
+    public async Task LoadSelectorsAsync()
+    {
+        try
+        {
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/114.0");
+            var jsonString = await client.GetStringAsync(Globals.XPATHS);
+            _globals.selectors = JsonSerializer.Deserialize<Dictionary<string, string>>(jsonString);
+            if (_globals.selectors == null || _globals.selectors.Count == 0)
+            {
+                throw new Exception("No se pudieron cargar los selectores desde el archivo JSON. El archivo puede estar vacío o mal formado.");
+            }
+            if(!_globals.selectors.ContainsKey("cartel_login") ||
+               !_globals.selectors.ContainsKey("cartel_sin_publicaciones") ||
+               !_globals.selectors.ContainsKey("items") ||
+               !_globals.selectors.ContainsKey("description_node") ||
+               !_globals.selectors.ContainsKey("kilometros_node") ||
+               !_globals.selectors.ContainsKey("precio_node") ||
+               !_globals.selectors.ContainsKey("monedas_node"))
+            {
+                throw new Exception("No se pudieron cargar los selectores desde el archivo JSON. El archivo puede estar vacío o mal formado.");
+            }
+            Console.WriteLine("Selectores cargados desde Git gist:");
+            foreach (var kvp in _globals.selectors)
+            {
+                Console.WriteLine($"{kvp.Key}: {kvp.Value}");
+            }
+        }
+        catch(Exception ex)
+        {
+            // Manejar errores de conexión o deserialización
+            Console.WriteLine($"Error al cargar los selectores: {ex.Message}");
+            throw new Exception("No se pudieron cargar los selectores desde el archivo JSON. Asegúrate de que la URL sea correcta y que tengas conexión a Internet.", ex);
         }
     }
 
@@ -719,25 +758,25 @@ public class Main
             var doc = new HtmlAgilityPack.HtmlDocument();
             doc.LoadHtml(html);
 
-            var cartelLogin = doc.DocumentNode.SelectSingleNode("//p[contains(@class, 'message-card')]");
+            var cartelLogin = doc.DocumentNode.SelectSingleNode(_globals.selectors["cartel_login"]);
             if( cartelLogin != null)
             {
                 throw new Exception("Logear ML, cambiar la cookie");
             }
 
-            var cartelSinPublicaciones = doc.DocumentNode.SelectNodes("//h3[contains(@class, 'ui-search-rescue__title')]");
+            var cartelSinPublicaciones = doc.DocumentNode.SelectNodes(_globals.selectors["cartel_sin_publicaciones"]);
             if (cartelSinPublicaciones != null)
             {
                 return results;
             }
-            var items = doc.DocumentNode.SelectNodes("//li[contains(@class, 'ui-search-layout__item')]");
+            var items = doc.DocumentNode.SelectNodes(_globals.selectors["items"]);
             if (items == null) return results;
             List<Auto> autos = new List<Auto>();
 
             foreach (var item in items)
             {
                 var auto = new Auto();
-                var descripcionNode = item.SelectSingleNode(".//a");
+                var descripcionNode = item.SelectSingleNode(_globals.selectors["description_node"]);
                 if (descripcionNode != null)
                 {
                     auto.Descripcion = descripcionNode.InnerText.Trim();
@@ -773,12 +812,12 @@ public class Main
                     }
 
                 }
-                var kilometrosNode = item.SelectSingleNode("(.//li[contains(@class, 'poly-attributes_list__item') and contains(@class, 'poly-attributes_list__separator')])[2]");
+                var kilometrosNode = item.SelectSingleNode(_globals.selectors["kilometros_node"]);
                 if (kilometrosNode != null)
                 {
                     auto.Kilometros = kilometrosNode.InnerText.Trim();
                 }
-                var precioNode = item.SelectSingleNode(".//span[contains(@class, 'andes-money-amount__fraction')]");
+                var precioNode = item.SelectSingleNode(_globals.selectors["precio_node"]);
                 if (precioNode != null)
                 {
                     decimal precioDecimal;
@@ -792,7 +831,7 @@ public class Main
                         auto.Precio = 0;
                     }
                 }
-                var monedaNode = item.SelectSingleNode(".//span[contains(@class, 'andes-money-amount__currency-symbol')]");
+                var monedaNode = item.SelectSingleNode(_globals.selectors["monedas_node"]);
                 if (monedaNode != null)
                 {
                     auto.Moneda = monedaNode.InnerText.Trim();
@@ -1269,8 +1308,3 @@ public class Main
         public string? Moneda { get; set; }
     }
 }
-
-
-
-
-
