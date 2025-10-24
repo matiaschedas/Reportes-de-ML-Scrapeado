@@ -1,0 +1,9 @@
+{
+  "comparador": true,
+  "fecha_a_comparar": "anterior",
+  "eliminar_anterior": false,
+  "notificar_pesos": 11000000,
+  "notificar_usd": 9000,
+  "id_telegram": 1018644491,
+  "cookie": "<COOKIE>"
+}
