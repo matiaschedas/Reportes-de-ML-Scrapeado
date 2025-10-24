@@ -1,8 +1,4 @@
-﻿
-/*
- hola
- */
-using HtmlAgilityPack;
+﻿using HtmlAgilityPack;
 using System;
 using System.Net.Http;
 using System.Reflection.Metadata.Ecma335;
@@ -34,11 +30,6 @@ using System.Text;
 
 public class Globals
 {
-    public string ClientSecret { get; set; } = "GWR6eZHrAZu47zusWIX8MinrMnSOjhYh";
-    public string AppID { get; set; } = "2398820623563499";
-    public string RefreshToken { get; set; } = "TG-67eb579fb8f51f0001e4b390-63251640";
-    public string Token { get; set; } = "APP_USR-2398820623563499-033123-3d0e381174c25b915eb04dbd62d46505-63251640";
-
     public const string XPATHS = "https://gist.githubusercontent.com/matiaschedas/d7aaa6d7c4acc87c662d41f430a18114/raw/Xpaths.json";
     public Dictionary<string, string> selectors;
 }
@@ -54,7 +45,12 @@ public class Program
             string rutaDelDirectorio = AppContext.BaseDirectory;
             rutaDelDirectorio += "token.txt";
             var mainInstance = new Main(globales);
-            await mainInstance.LoadSelectorsAsync();
+
+            string rutaComparador = AppContext.BaseDirectory;
+            rutaComparador += "Comparador.txt";
+            CMP comparador = mainInstance.obtenerCMP(rutaComparador);
+
+            await mainInstance.LoadSelectorsAsync(comparador.GistApiKey);
             var pathHistoricos = AppContext.BaseDirectory + "Historicos";
             var pathReportes = AppContext.BaseDirectory + "Reportes";
             mainInstance.CrearCarpeta(pathHistoricos);
@@ -76,9 +72,7 @@ public class Program
             bool EsReporteComparador = false;
             string fechaAComparar = "";
             
-            string rutaComparador = AppContext.BaseDirectory;
-            rutaComparador += "Comparador.txt";
-            CMP comparador = mainInstance.obtenerCMP(rutaComparador);
+            
             
 
             if (comparador.EliminarAnterior == true)
@@ -287,7 +281,7 @@ public class Main
         }
     }
 
-    public async Task LoadSelectorsAsync()
+    public async Task LoadSelectorsAsyncDeprecated()
     {
         try
         {
@@ -320,6 +314,65 @@ public class Main
             // Manejar errores de conexión o deserialización
             Console.WriteLine($"Error al cargar los selectores: {ex.Message}");
             throw new Exception("No se pudieron cargar los selectores desde el archivo JSON. Asegúrate de que la URL sea correcta y que tengas conexión a Internet.", ex);
+        }
+    }
+
+    public async Task LoadSelectorsAsync(string apiKey)
+    {
+        try
+        {
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.Add("User-Agent", "CSharpApp/1.0");
+            client.DefaultRequestHeaders.Add("Authorization", "Bearer "+ apiKey);
+            client.DefaultRequestHeaders.Add("Accept", "application/vnd.github+json");
+
+            // Endpoint del Gist (API, no el raw)
+            var gistUrl = "https://api.github.com/gists/d7aaa6d7c4acc87c662d41f430a18114";
+
+            // Descargar metadatos del Gist
+            var response = await client.GetAsync(gistUrl);
+            response.EnsureSuccessStatusCode();
+
+            var gistJson = await response.Content.ReadAsStringAsync();
+
+            // Parsear el JSON general
+            using var doc = JsonDocument.Parse(gistJson);
+            var root = doc.RootElement;
+
+            // Extraer el contenido del archivo "Xpaths.json"
+            var content = root
+                .GetProperty("files")
+                .GetProperty("Xpaths.json")
+                .GetProperty("content")
+                .GetString();
+
+            // Deserializar el contenido en un diccionario
+            _globals.selectors = JsonSerializer.Deserialize<Dictionary<string, string>>(content);
+
+            if (_globals.selectors == null || _globals.selectors.Count == 0)
+                throw new Exception("No se pudieron cargar los selectores: JSON vacío o mal formado.");
+
+            // Validar las claves esperadas
+            string[] requiredKeys =
+            {
+            "cartel_login", "cartel_sin_publicaciones", "items",
+            "description_node", "kilometros_node", "precio_node", "monedas_node", "anio_node"
+            };
+
+            foreach (var key in requiredKeys)
+            {
+                if (!_globals.selectors.ContainsKey(key))
+                    throw new Exception($"Falta la clave requerida: {key}");
+            }
+
+            Console.WriteLine("Selectores cargados correctamente desde GitHub Gist:");
+            foreach (var kvp in _globals.selectors)
+                Console.WriteLine($"{kvp.Key}: {kvp.Value}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar los selectores: {ex.Message}");
+            throw new Exception("No se pudieron cargar los selectores desde el Gist de GitHub.", ex);
         }
     }
 
@@ -440,6 +493,7 @@ public class Main
                 List<Auto> results = new List<Auto>();
                 results = await Query(busqueda, cookie);
                 results = FiltrarNoBuscados(results, noBuscar);
+                results = FiltrarAnio(results, hoja.ToString());
                 //results = BorrarCajaAutomatica(results);
                 Console.WriteLine("Volcando resultados de " + busquedaUser + " " + hoja);
 
@@ -472,6 +526,10 @@ public class Main
             return autos;
     }
 
+    public List<Auto> FiltrarAnio(List<Auto> autos, string anio)
+    {
+       return autos.Where(auto => auto.Anio == anio.Trim()).ToList();
+    }
     public void ModificarReporte(string ruta, List<Auto> cambiaronPrecio, string hoja)
     {
         if (cambiaronPrecio.Count == 0)
@@ -704,6 +762,7 @@ public class Main
             
             List<Auto> results = await Query(busqueda, cookie);
             results = FiltrarNoBuscados(results, noBuscar);
+            results = FiltrarAnio(results, anioInicio.ToString());
             //bool existe = verificarIdExiste(results, "MLA1478269101");
             //results = BorrarCajaAutomatica(results);
             //existe = verificarIdExiste(results, "MLA1478269101");
@@ -813,9 +872,14 @@ public class Main
 
                 }
                 var kilometrosNode = item.SelectSingleNode(_globals.selectors["kilometros_node"]);
+                var anioNode = item.SelectSingleNode(_globals.selectors["anio_node"]);
                 if (kilometrosNode != null)
                 {
                     auto.Kilometros = kilometrosNode.InnerText.Trim();
+                }
+                if(anioNode != null)
+                {
+                    auto.Anio = anioNode.InnerText.Trim();
                 }
                 var precioNode = item.SelectSingleNode(_globals.selectors["precio_node"]);
                 if (precioNode != null)
@@ -827,7 +891,7 @@ public class Main
                     }
                     else
                     {
-                        // La conversión falló, manejar el error o asignar un valor predeterminado
+                        Console.WriteLine("La conversión falló, manejar el error o asignar un valor predeterminado");
                         auto.Precio = 0;
                     }
                 }
@@ -1295,9 +1359,11 @@ public class Main
         [JsonPropertyName("notificar_usd")]
         public int NotificarUsd { get; set; }//por defecto no notifica pesos
         [JsonPropertyName("id_telegram")]
-        public int IdTelegram { get; set; } //por defecto no notifica pesos
+        public int IdTelegram { get; set; }
         [JsonPropertyName("cookie")]
         public string Cookie { get; set; }
+        [JsonPropertyName("gist_api_key")]
+        public string GistApiKey { get; set; }
     }
     public class Auto
     {
@@ -1306,5 +1372,6 @@ public class Main
         public string? Kilometros { get; set; }
         public decimal? Precio { get; set; }
         public string? Moneda { get; set; }
+        public string? Anio { get; set; }
     }
 }
