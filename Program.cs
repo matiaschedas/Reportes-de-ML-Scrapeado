@@ -299,7 +299,8 @@ public class Main
                !_globals.selectors.ContainsKey("description_node") ||
                !_globals.selectors.ContainsKey("kilometros_node") ||
                !_globals.selectors.ContainsKey("precio_node") ||
-               !_globals.selectors.ContainsKey("monedas_node"))
+               !_globals.selectors.ContainsKey("monedas_node") || 
+               !_globals.selectors.ContainsKey("no_existe"))
             {
                 throw new Exception("No se pudieron cargar los selectores desde el archivo JSON. El archivo puede estar vacío o mal formado.");
             }
@@ -824,12 +825,14 @@ public class Main
             }
 
             var cartelSinPublicaciones = doc.DocumentNode.SelectNodes(_globals.selectors["cartel_sin_publicaciones"]);
-            if (cartelSinPublicaciones != null)
-            {
-                return results;
-            }
+            if (cartelSinPublicaciones != null) return results;
+
+            var cartelNoExisteLaBusqueda = doc.DocumentNode.SelectNodes(_globals.selectors["no_existe"]);
+            if (cartelNoExisteLaBusqueda != null) return results;
+
             var items = doc.DocumentNode.SelectNodes(_globals.selectors["items"]);
             if (items == null) return results;
+
             List<Auto> autos = new List<Auto>();
 
             foreach (var item in items)
@@ -855,8 +858,18 @@ public class Main
                             AllowAutoRedirect = true
                         };
                         using var client2 = new HttpClient(handler2);
-                        var response2 = await client2.GetAsync(url);
-                        string finalURL = response2.RequestMessage.RequestUri.ToString();
+                        string finalURL;
+                        try
+                        {
+                            var response2 = await client2.GetAsync(url);
+                            finalURL = response2.RequestMessage.RequestUri.ToString();
+                        }
+                        catch(Exception ex)
+                        {
+                            Console.WriteLine("Error al obtener el ID del auto: " + ex.Message);
+                            continue;
+                        }
+                       
                         
                         Regex rg2 = new Regex(@"(MLA-\d+)");
                         Match match2 = rg2.Match(finalURL);
