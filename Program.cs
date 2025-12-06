@@ -300,7 +300,8 @@ public class Main
                !_globals.selectors.ContainsKey("kilometros_node") ||
                !_globals.selectors.ContainsKey("precio_node") ||
                !_globals.selectors.ContainsKey("monedas_node") || 
-               !_globals.selectors.ContainsKey("no_existe"))
+               !_globals.selectors.ContainsKey("no_existe") ||
+               !_globals.selectors.ContainsKey("productos_compatibles"))
             {
                 throw new Exception("No se pudieron cargar los selectores desde el archivo JSON. El archivo puede estar vacío o mal formado.");
             }
@@ -357,7 +358,7 @@ public class Main
             string[] requiredKeys =
             {
             "cartel_login", "cartel_sin_publicaciones", "items",
-            "description_node", "kilometros_node", "precio_node", "monedas_node", "anio_node"
+            "description_node", "kilometros_node", "precio_node", "monedas_node", "anio_node", "no_existe", "productos_compatibles"
             };
 
             foreach (var key in requiredKeys)
@@ -572,9 +573,18 @@ public class Main
     {
         //esta funcion se queda con todos los autos que tengan o un ID nuevo (respecto al reporte anterior es decir tabla) o un precio nuevo
         var idsYPrecios = new HashSet<(string, decimal)>();
+        decimal precio;
         foreach (var fila in tabla)
         {
-            decimal precio = decimal.Parse(fila[3].ToString());
+            try
+            {
+                precio = decimal.Parse(fila[3].ToString());
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine("Error al parsear el precio en FiltrarResultadosRepetidos: " + ex.Message);
+                continue;
+            }
             idsYPrecios.Add((fila[0], precio));
         }
         results.RemoveAll(r => idsYPrecios.Contains((r.ID, r.Precio ?? decimal.Zero)));
@@ -824,6 +834,9 @@ public class Main
                 throw new Exception("Logear ML, cambiar la cookie");
             }
 
+            var cartelProductosCompatibles = doc.DocumentNode.SelectNodes(_globals.selectors["productos_compatibles"]);
+            if (cartelProductosCompatibles != null) return results;
+
             var cartelSinPublicaciones = doc.DocumentNode.SelectNodes(_globals.selectors["cartel_sin_publicaciones"]);
             if (cartelSinPublicaciones != null) return results;
 
@@ -832,6 +845,8 @@ public class Main
 
             var items = doc.DocumentNode.SelectNodes(_globals.selectors["items"]);
             if (items == null) return results;
+
+            
 
             List<Auto> autos = new List<Auto>();
 
