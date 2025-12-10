@@ -846,7 +846,10 @@ public class Main
             var items = doc.DocumentNode.SelectNodes(_globals.selectors["items"]);
             if (items == null) return results;
 
-            
+            var item1 = items[0];
+            var anioItem1 = item1.SelectSingleNode(_globals.selectors["anio_node"]);
+            if (anioItem1 == null || !int.TryParse(anioItem1.InnerText.Trim(), out _)) return results;
+
 
             List<Auto> autos = new List<Auto>();
 
