@@ -27,6 +27,7 @@ using Telegram.Bot.Args;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types.Enums;
 using System.Text;
+using Microsoft.Playwright;
 
 public class Globals
 {
@@ -807,28 +808,25 @@ public class Main
         urlScrapear += offset.ToString();
         urlScrapear += "_NoIndex_True";
         List<Auto> results = new List<Auto>();
-        HtmlWeb web = new HtmlWeb();
+       // HtmlWeb web = new HtmlWeb();
         int LimitLoop = 50;
         int iteration = 0;
 
-        
-       
-        
-
         while (iteration < LimitLoop)
         {
-            //HtmlDocument doc = web.Load(urlScrapear);
-            using var handler = new HttpClientHandler();
-            using var client = new HttpClient(handler);
-            var request = new HttpRequestMessage(HttpMethod.Get, urlScrapear);
-            request.Headers.Add("Cookie", cookie);
-            request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/114.0");
-            var response = await client.SendAsync(request);
-            string html = await response.Content.ReadAsStringAsync();
-            var doc = new HtmlAgilityPack.HtmlDocument();
-            doc.LoadHtml(html);
+            using var playwright = await Playwright.CreateAsync();
+            await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless = true });
+            var doc = await browser.NewPageAsync();
 
-            var cartelLogin = doc.DocumentNode.SelectSingleNode(_globals.selectors["cartel_login"]);
+            // Asignamos un User-Agent real para evitar bloqueos
+            await doc.SetExtraHTTPHeadersAsync(new Dictionary<string, string>
+            {
+                ["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            });
+
+            await doc.GotoAsync(urlScrapear);
+
+            /*var cartelLogin = doc.QuerySelectorAllAsync(_globals.selectors["cartel_login"]);
             if( cartelLogin != null)
             {
                 throw new Exception("Logear ML, cambiar la cookie");
@@ -837,30 +835,35 @@ public class Main
             var cartelProductosCompatibles = doc.DocumentNode.SelectNodes(_globals.selectors["productos_compatibles"]);
             if (cartelProductosCompatibles != null) return results;
 
-            var cartelSinPublicaciones = doc.DocumentNode.SelectNodes(_globals.selectors["cartel_sin_publicaciones"]);
-            if (cartelSinPublicaciones != null) return results;
 
             var cartelNoExisteLaBusqueda = doc.DocumentNode.SelectNodes(_globals.selectors["no_existe"]);
             if (cartelNoExisteLaBusqueda != null) return results;
+            */
+            var cartelSinPublicaciones = await doc.QuerySelectorAllAsync(_globals.selectors["cartel_sin_publicaciones"]);
+            if (cartelSinPublicaciones != null && cartelSinPublicaciones.Count > 0)
+            {
+                return results;
+            }
 
-            var items = doc.DocumentNode.SelectNodes(_globals.selectors["items"]);
+            var items = await doc.QuerySelectorAllAsync("div.poly-card, li[class*='ui-search-layout']");
             if (items == null) return results;
 
+            /*
             var item1 = items[0];
-            var anioItem1 = item1.SelectSingleNode(_globals.selectors["anio_node"]);
-            if (anioItem1 == null || !int.TryParse(anioItem1.InnerText.Trim(), out _)) return results;
-
+            var anioItem1 = await item1.QuerySelectorAsync(_globals.selectors["anio_node"]);
+            if (anioItem1 == null || !int.TryParse(await anioItem1.InnerTextAsync(), out _)) return results;
+            */
 
             List<Auto> autos = new List<Auto>();
 
             foreach (var item in items)
             {
                 var auto = new Auto();
-                var descripcionNode = item.SelectSingleNode(_globals.selectors["description_node"]);
+                var descripcionNode = await item.QuerySelectorAsync(_globals.selectors["description_node"]);
                 if (descripcionNode != null)
                 {
-                    auto.Descripcion = descripcionNode.InnerText.Trim();
-                    string href = descripcionNode.GetAttributeValue("href", string.Empty).Trim();
+                    auto.Descripcion = await descripcionNode.InnerTextAsync();
+                    string href = await descripcionNode.GetAttributeAsync("href");
                     //auto.ID
                     Regex rg = new Regex(@"(MLA-\d+)");
                     Match match = rg.Match(href);
@@ -902,21 +905,21 @@ public class Main
                     }
 
                 }
-                var kilometrosNode = item.SelectSingleNode(_globals.selectors["kilometros_node"]);
-                var anioNode = item.SelectSingleNode(_globals.selectors["anio_node"]);
+                var kilometrosNode = await item.QuerySelectorAsync(_globals.selectors["kilometros_node"]);
+                var anioNode = await item.QuerySelectorAsync(_globals.selectors["anio_node"]);
                 if (kilometrosNode != null)
                 {
-                    auto.Kilometros = kilometrosNode.InnerText.Trim();
+                    auto.Kilometros = await kilometrosNode.InnerTextAsync();
                 }
                 if(anioNode != null)
                 {
-                    auto.Anio = anioNode.InnerText.Trim();
+                    auto.Anio = await anioNode.InnerTextAsync();
                 }
-                var precioNode = item.SelectSingleNode(_globals.selectors["precio_node"]);
+                var precioNode = await item.QuerySelectorAsync(_globals.selectors["precio_node"]);
                 if (precioNode != null)
                 {
                     decimal precioDecimal;
-                    if (decimal.TryParse(precioNode.InnerText.Trim(), out precioDecimal))
+                    if (decimal.TryParse(await precioNode.InnerTextAsync(), out precioDecimal))
                     {
                         auto.Precio = precioDecimal;
                     }
@@ -926,10 +929,10 @@ public class Main
                         auto.Precio = 0;
                     }
                 }
-                var monedaNode = item.SelectSingleNode(_globals.selectors["monedas_node"]);
+                var monedaNode = await item.QuerySelectorAsync(_globals.selectors["monedas_node"]);
                 if (monedaNode != null)
                 {
-                    auto.Moneda = monedaNode.InnerText.Trim();
+                    auto.Moneda = await monedaNode.InnerTextAsync();
                 }
                 autos.Add(auto);
             }
